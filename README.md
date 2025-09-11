@@ -1,6 +1,6 @@
 # Work Plan Manager WordPress Plugin
 
-A comprehensive WordPress plugin that provides an alternate interface to manage three related post types (Work Plans, Goals, and Objectives). The plugin works with your existing ACF field configurations and post types to streamline data entry and allow administrators to manage everything on one admin page.
+A comprehensive WordPress plugin that provides an alternate interface to manage three related post types (Work Plans, Goals, and Objectives). The plugin works with existing ACF field configurations and post types to streamline data entry and allow administrators to manage everything on one admin page.
 
 ## Features
 
