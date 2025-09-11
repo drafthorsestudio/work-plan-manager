@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Work Plan Manager
  * Description: A plugin to manage Work Plans, Goals, and Objectives with a streamlined interface
- * Version: 1.0.3
+ * Version: 1.2.0
  * Author: KC Web Programmers
  * Text Domain: work-plan-manager
  */
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('WPM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WPM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('WPM_VERSION', '1.0.0');
+define('WPM_VERSION', '1.2.0');
 
 class WorkPlanManager {
     
@@ -50,6 +50,21 @@ class WorkPlanManager {
         // require_once WPM_PLUGIN_PATH . 'includes/acf-behaviors.php';
     }
     
+    /**
+     * Helper to get ACF field value whether it returns array or string
+     */
+    private function get_field_value($field_name, $post_id) {
+        $value = get_field($field_name, $post_id);
+        
+        // If it's an array (ACF select field returning both value and label)
+        if (is_array($value)) {
+            return isset($value['value']) ? $value['value'] : '';
+        }
+        
+        // If it's already a string, return as is
+        return $value ?: '';
+    }
+
     public function init() {
         $this->setup_capabilities();
     }
@@ -340,7 +355,7 @@ class WorkPlanManager {
             'title' => $workplan->post_title,
             'author' => get_the_author_meta('display_name', $workplan->post_author),
             'date' => $workplan->post_date,
-            'internal_status' => get_field('internal_status', $workplan->ID),
+            'internal_status' => $this->get_field_value('internal_status', $workplan->ID),
             'group' => wp_get_post_terms($workplan->ID, 'group', array('fields' => 'names')),
             'grant_year' => wp_get_post_terms($workplan->ID, 'grant-year', array('fields' => 'names')),
         );

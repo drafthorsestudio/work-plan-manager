@@ -122,6 +122,67 @@ function wpm_ajax_validate_duplicates() {
 }
 
 /**
+ * Real-time validation helpers for the plugin interface
+ */
+add_action('wp_ajax_wpm_check_duplicate_goal_letter', 'wpm_ajax_check_duplicate_goal_letter');
+function wpm_ajax_check_duplicate_goal_letter() {
+    check_ajax_referer('wpm_nonce', 'nonce');
+    
+    $workplan_id = intval($_POST['workplan_id'] ?? 0);
+    $goal_letter = sanitize_text_field($_POST['goal_letter'] ?? '');
+    $exclude_goal_id = intval($_POST['exclude_id'] ?? 0);
+    
+    if (!$workplan_id || !$goal_letter) {
+        wp_send_json_success(array('is_unique' => true));
+    }
+    
+    $related_goals = get_field('related_work_plan_goals', $workplan_id) ?: array();
+    
+    foreach ($related_goals as $goal_id) {
+        if ($goal_id != $exclude_goal_id) {
+            $existing_letter = get_field('goal_letter', $goal_id);
+            if (strtoupper($existing_letter) === strtoupper($goal_letter)) {
+                wp_send_json_success(array(
+                    'is_unique' => false,
+                    'message' => "Goal letter '{$goal_letter}' is already used in this work plan."
+                ));
+            }
+        }
+    }
+    
+    wp_send_json_success(array('is_unique' => true));
+}
+
+add_action('wp_ajax_wpm_check_duplicate_objective_number', 'wpm_ajax_check_duplicate_objective_number');
+function wpm_ajax_check_duplicate_objective_number() {
+    check_ajax_referer('wpm_nonce', 'nonce');
+    
+    $goal_id = intval($_POST['goal_id'] ?? 0);
+    $objective_number = intval($_POST['objective_number'] ?? 0);
+    $exclude_objective_id = intval($_POST['exclude_id'] ?? 0);
+    
+    if (!$goal_id || !$objective_number) {
+        wp_send_json_success(array('is_unique' => true));
+    }
+    
+    $related_objectives = get_field('work_plan_objectives', $goal_id) ?: array();
+    
+    foreach ($related_objectives as $objective_id) {
+        if ($objective_id != $exclude_objective_id) {
+            $existing_number = get_field('objective_number', $objective_id);
+            if (intval($existing_number) === intval($objective_number)) {
+                wp_send_json_success(array(
+                    'is_unique' => false,
+                    'message' => "Objective number '{$objective_number}' is already used in this goal."
+                ));
+            }
+        }
+    }
+    
+    wp_send_json_success(array('is_unique' => true));
+}
+
+/**
  * Auto-populate group taxonomy when saving posts (optional enhancement)
  * Automatically copies group taxonomy from parent workplan to goals and objectives
  */

@@ -165,15 +165,6 @@ $group_terms = get_terms(array(
             <div id="goals-container"></div>
         </div>
         
-        <!-- Objectives Section -->
-        <div class="wpm-section wpm-objectives-section" id="objectives-section" style="display: none;">
-            <div class="wpm-section-header">
-                <h2><?php _e('Work Plan Objectives', 'work-plan-manager'); ?></h2>
-            </div>
-            
-            <div id="objectives-container"></div>
-        </div>
-        
         <!-- Preview Section -->
         <div class="wpm-section wpm-preview-section" id="preview-section" style="display: none;">
             <div class="wpm-section-header">
@@ -210,7 +201,7 @@ $group_terms = get_terms(array(
             </div>
         </div>
         
-        <div class="wmp-goal-form">
+        <div class="wpm-goal-form">
             <input type="hidden" class="goal-id" value="{{goal_id}}">
             
             <div class="wpm-form-row">
@@ -320,7 +311,7 @@ $group_terms = get_terms(array(
     <div class="wpm-output-row">
         <div class="wpm-form-group">
             <label><?php _e('Output Letter:', 'work-plan-manager'); ?></label>
-            <input type="text" class="output-letter" value="{{output_letter}}" maxlength="1">
+            <input type="text" class="output-letter" value="{{output_letter}}" maxlength="1" style="text-transform: uppercase;">
         </div>
         <div class="wpm-form-group wpm-form-group-full">
             <label><?php _e('Output Description:', 'work-plan-manager'); ?></label>

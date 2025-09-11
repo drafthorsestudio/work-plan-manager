@@ -48,16 +48,18 @@ jQuery(document).ready(function($) {
             $('#export-excel').on('click', function() { WorkPlanManager.exportWorkplan('excel'); });
             $('#export-csv').on('click', function() { WorkPlanManager.exportWorkplan('csv'); });
             
-            // Auto-update goal letters and objective numbers
-            $(document).on('change', '.goal-letter-select', this.updateGoalLetter);
-            $(document).on('change', '.objective-number-input', this.updateObjectiveNumber);
+            // Ordering events - trigger re-ordering when changed
+            $(document).on('change', '.goal-letter-select', this.handleGoalReorder);
+            $(document).on('change', '.objective-number-input', this.handleObjectiveReorder);
+            $(document).on('change', '.output-letter', this.handleOutputReorder);
             
             // Auto-save functionality
             $(document).on('blur', 'input, textarea, select', this.handleAutoSave);
         },
         
         initializeComponents: function() {
-            // Initialize any additional components here
+            // Hide objectives section on load
+            $('#objectives-section').hide();
         },
         
         showLoading: function() {
@@ -71,16 +73,18 @@ jQuery(document).ready(function($) {
         showNewWorkplanForm: function() {
             $('#workplan-form').show();
             $('#goals-section').hide();
-            $('#objectives-section').hide();
             $('#preview-section').hide();
             
             // Reset form
             $('#workplan-id').val('0');
             $('#workplan-title').val('');
             $('#grant-year').val('');
-            $('#grant-quarter').val('');
             $('#workplan-group').val('');
             $('#internal-status').val('Draft');
+            
+            // Set current date
+            const today = new Date();
+            $('#workplan-date').val(today.toISOString().split('T')[0]);
             
             WorkPlanManager.currentWorkplanId = 0;
         },
@@ -121,27 +125,33 @@ jQuery(document).ready(function($) {
         populateWorkplanForm: function(data) {
             $('#workplan-form').show();
             $('#workplan-id').val(data.id);
-            $('#workplan-title').val(data.title);
             
-            // Set Internal Status ACF field
+            // Remove year suffix if present to avoid duplicate years
+            let title = data.title;
+            title = title.replace(/\s*-\s*\d{4}$/, '');
+            $('#workplan-title').val(title);
+            
+            // Set Internal Status
             $('#internal-status').val(data.internal_status || 'Draft');
             
-            // Set Group taxonomy - find the option by matching the term name
+            // Set Group taxonomy
             if (data.group && data.group.length > 0) {
                 const groupName = data.group[0];
                 $('#workplan-group option').each(function() {
                     if ($(this).text().trim() === groupName.trim()) {
                         $(this).prop('selected', true);
+                        return false;
                     }
                 });
             }
             
-            // Set Grant Year taxonomy - find the option by matching the term name
+            // Set Grant Year taxonomy
             if (data.grant_year && data.grant_year.length > 0) {
                 const yearName = data.grant_year[0];
                 $('#grant-year option').each(function() {
                     if ($(this).text().trim() === yearName.trim()) {
                         $(this).prop('selected', true);
+                        return false;
                     }
                 });
             }
@@ -156,11 +166,21 @@ jQuery(document).ready(function($) {
         },
         
         saveWorkplan: function() {
-            const title = $('#workplan-title').val().trim();
+            let title = $('#workplan-title').val().trim();
             if (!title) {
                 alert('Please enter a work plan title.');
                 return;
             }
+            
+            // Remove any existing year suffix to avoid duplicates
+            title = title.replace(/\s*-\s*\d{4}$/, '');
+            
+            // Get the year from the publish date
+            const publishDate = $('#workplan-date').val();
+            const year = publishDate ? new Date(publishDate).getFullYear() : new Date().getFullYear();
+            
+            // Append the year
+            const titleWithYear = title + ' - ' + year;
             
             WorkPlanManager.showLoading();
             
@@ -170,7 +190,7 @@ jQuery(document).ready(function($) {
                 data: {
                     action: 'save_workplan',
                     workplan_id: $('#workplan-id').val(),
-                    title: title,
+                    title: titleWithYear,
                     grant_year: $('#grant-year').val(),
                     group: $('#workplan-group').val(),
                     internal_status: $('#internal-status').val(),
@@ -180,6 +200,7 @@ jQuery(document).ready(function($) {
                     if (response.success) {
                         WorkPlanManager.currentWorkplanId = response.data.workplan_id;
                         $('#workplan-id').val(response.data.workplan_id);
+                        $('#workplan-title').val(title); // Keep clean title in form
                         $('#goals-section').show();
                         $('#preview-section').show();
                         WorkPlanManager.updatePreview();
@@ -197,15 +218,13 @@ jQuery(document).ready(function($) {
         },
         
         addNewGoal: function() {
-            const goalCount = $('.wpm-goal-item').length;
-            const goalLetter = String.fromCharCode(65 + goalCount); // A, B, C, etc.
+            const goalLetter = WorkPlanManager.getNextAvailableGoalLetter();
             
             const goalHtml = WorkPlanManager.getGoalTemplate({
                 goal_id: '0',
                 goal_title: '',
                 goal_letter: goalLetter,
-                goal_description: '',
-                timeline_description: ''
+                goal_description: ''
             });
             
             $('#goals-container').append(goalHtml);
@@ -221,6 +240,12 @@ jQuery(document).ready(function($) {
             
             if (!goalData.title.trim()) {
                 alert('Please enter a goal title.');
+                return;
+            }
+            
+            // Validate for duplicate letter
+            if (!WorkPlanManager.isGoalLetterUnique(goalData.letter, goalData.id)) {
+                alert('Goal letter "' + goalData.letter + '" is already in use. Please select a different letter.');
                 return;
             }
             
@@ -242,6 +267,7 @@ jQuery(document).ready(function($) {
                     if (response.success) {
                         $goalItem.attr('data-goal-id', response.data.goal_id);
                         $goalItem.find('.goal-id').val(response.data.goal_id);
+                        WorkPlanManager.sortGoals();
                         WorkPlanManager.updatePreview();
                         alert('Goal saved successfully!');
                     } else {
@@ -278,7 +304,6 @@ jQuery(document).ready(function($) {
                     success: function(response) {
                         if (response.success) {
                             $goalItem.remove();
-                            WorkPlanManager.updateGoalLetters();
                             WorkPlanManager.updatePreview();
                         } else {
                             alert('Failed to delete goal: ' + response.data);
@@ -292,7 +317,6 @@ jQuery(document).ready(function($) {
                 });
             } else {
                 $goalItem.remove();
-                WorkPlanManager.updateGoalLetters();
                 WorkPlanManager.updatePreview();
             }
         },
@@ -301,8 +325,7 @@ jQuery(document).ready(function($) {
             const $goalItem = $(this).closest('.wpm-goal-item');
             const goalData = WorkPlanManager.getGoalFormData($goalItem);
             
-            const goalCount = $('.wpm-goal-item').length;
-            const goalLetter = String.fromCharCode(65 + goalCount);
+            const goalLetter = WorkPlanManager.getNextAvailableGoalLetter();
             
             const duplicatedGoalHtml = WorkPlanManager.getGoalTemplate({
                 goal_id: '0',
@@ -312,23 +335,24 @@ jQuery(document).ready(function($) {
             });
             
             $goalItem.after(duplicatedGoalHtml);
-            WorkPlanManager.updateGoalLetters();
+            const $newGoal = $goalItem.next('.wpm-goal-item');
+            $newGoal.find('.goal-letter-select').val(goalLetter);
         },
         
         addNewObjective: function() {
             const $goalItem = $(this).closest('.wpm-goal-item');
-            const objectiveCount = $goalItem.find('.wpm-objective-item').length;
-            const objectiveNumber = objectiveCount + 1;
+            const objectiveNumber = WorkPlanManager.getNextAvailableObjectiveNumber($goalItem);
             
             const objectiveHtml = WorkPlanManager.getObjectiveTemplate({
                 objective_id: '0',
                 objective_title: '',
                 objective_number: objectiveNumber,
-                objective_description: ''
+                objective_description: '',
+                timeline_description: '',
+                measureable_outcomes: ''
             });
             
             $goalItem.find('.wpm-objectives-container').append(objectiveHtml);
-            $('#objectives-section').show();
         },
         
         saveObjective: function() {
@@ -344,6 +368,19 @@ jQuery(document).ready(function($) {
             
             if (!goalId || goalId === '0') {
                 alert('Please save the parent goal first.');
+                return;
+            }
+            
+            // Validate for duplicate number
+            if (!WorkPlanManager.isObjectiveNumberUnique(objectiveData.number, objectiveData.id, $goalItem)) {
+                alert('Objective number "' + objectiveData.number + '" is already in use in this goal. Please select a different number.');
+                return;
+            }
+            
+            // Validate output letters for duplicates
+            const duplicateOutputs = WorkPlanManager.findDuplicateOutputLetters(objectiveData.outputs);
+            if (duplicateOutputs.length > 0) {
+                alert('Duplicate output letters found: ' + duplicateOutputs.join(', ') + '. Please use unique letters for each output.');
                 return;
             }
             
@@ -369,6 +406,7 @@ jQuery(document).ready(function($) {
                     if (response.success) {
                         $objectiveItem.attr('data-objective-id', response.data.objective_id);
                         $objectiveItem.find('.objective-id').val(response.data.objective_id);
+                        WorkPlanManager.sortObjectives($goalItem);
                         WorkPlanManager.updatePreview();
                         alert('Objective saved successfully!');
                     } else {
@@ -405,7 +443,6 @@ jQuery(document).ready(function($) {
                     success: function(response) {
                         if (response.success) {
                             $objectiveItem.remove();
-                            WorkPlanManager.updateObjectiveNumbers();
                             WorkPlanManager.updatePreview();
                         } else {
                             alert('Failed to delete objective: ' + response.data);
@@ -419,7 +456,6 @@ jQuery(document).ready(function($) {
                 });
             } else {
                 $objectiveItem.remove();
-                WorkPlanManager.updateObjectiveNumbers();
                 WorkPlanManager.updatePreview();
             }
         },
@@ -429,8 +465,7 @@ jQuery(document).ready(function($) {
             const $goalItem = $objectiveItem.closest('.wpm-goal-item');
             const objectiveData = WorkPlanManager.getObjectiveFormData($objectiveItem);
             
-            const objectiveCount = $goalItem.find('.wpm-objective-item').length;
-            const objectiveNumber = objectiveCount + 1;
+            const objectiveNumber = WorkPlanManager.getNextAvailableObjectiveNumber($goalItem);
             
             const duplicatedObjectiveHtml = WorkPlanManager.getObjectiveTemplate({
                 objective_id: '0',
@@ -448,13 +483,15 @@ jQuery(document).ready(function($) {
             objectiveData.outputs.forEach(function(output) {
                 WorkPlanManager.addOutputToObjective($newObjective, output);
             });
-            
-            WorkPlanManager.updateObjectiveNumbers();
         },
         
         addNewOutput: function() {
             const $objectiveItem = $(this).closest('.wpm-objective-item');
-            WorkPlanManager.addOutputToObjective($objectiveItem);
+            const outputLetter = WorkPlanManager.getNextAvailableOutputLetter($objectiveItem);
+            WorkPlanManager.addOutputToObjective($objectiveItem, {
+                output_letter: outputLetter,
+                output_description: ''
+            });
         },
         
         addOutputToObjective: function($objectiveItem, outputData) {
@@ -472,42 +509,226 @@ jQuery(document).ready(function($) {
             $(this).closest('.wpm-output-row').remove();
         },
         
-        updateGoalLetter: function() {
+        handleGoalReorder: function() {
             const $select = $(this);
             const $goalItem = $select.closest('.wpm-goal-item');
             const selectedLetter = $select.val();
+            const currentGoalId = $goalItem.find('.goal-id').val();
             
             $goalItem.find('.goal-letter').text(selectedLetter);
+            
+            // Check for duplicates
+            if (!WorkPlanManager.isGoalLetterUnique(selectedLetter, currentGoalId)) {
+                alert('Goal letter "' + selectedLetter + '" is already used. Please select a different letter.');
+                const newLetter = WorkPlanManager.getNextAvailableGoalLetter();
+                $select.val(newLetter);
+                $goalItem.find('.goal-letter').text(newLetter);
+                return;
+            }
+            
+            // Sort goals after change
+            WorkPlanManager.sortGoals();
             WorkPlanManager.updatePreview();
         },
         
-        updateObjectiveNumber: function() {
+        handleObjectiveReorder: function() {
             const $input = $(this);
             const $objectiveItem = $input.closest('.wpm-objective-item');
-            const selectedNumber = $input.val();
+            const $goalItem = $objectiveItem.closest('.wpm-goal-item');
+            const selectedNumber = parseInt($input.val());
+            const currentObjectiveId = $objectiveItem.find('.objective-id').val();
+            
+            if (!selectedNumber) return;
             
             $objectiveItem.find('.objective-number').text(selectedNumber);
+            
+            // Check for duplicates
+            if (!WorkPlanManager.isObjectiveNumberUnique(selectedNumber, currentObjectiveId, $goalItem)) {
+                alert('Objective number "' + selectedNumber + '" is already used in this goal. Please select a different number.');
+                const newNumber = WorkPlanManager.getNextAvailableObjectiveNumber($goalItem);
+                $input.val(newNumber);
+                $objectiveItem.find('.objective-number').text(newNumber);
+                return;
+            }
+            
+            // Sort objectives after change
+            WorkPlanManager.sortObjectives($goalItem);
             WorkPlanManager.updatePreview();
         },
         
-        updateGoalLetters: function() {
-            $('.wpm-goal-item').each(function(index) {
-                const letter = String.fromCharCode(65 + index);
-                $(this).find('.goal-letter').text(letter);
-                $(this).find('.goal-letter-select').val(letter);
+        handleOutputReorder: function() {
+            const $input = $(this);
+            const $objectiveItem = $input.closest('.wpm-objective-item');
+            const selectedLetter = $input.val().toUpperCase();
+            const $currentRow = $input.closest('.wpm-output-row');
+            
+            if (!selectedLetter) return;
+            
+            // Update to uppercase
+            $input.val(selectedLetter);
+            
+            // Check for duplicates
+            let duplicateCount = 0;
+            $objectiveItem.find('.wpm-output-row').each(function() {
+                const $row = $(this);
+                if ($row[0] !== $currentRow[0]) {
+                    const rowLetter = $row.find('.output-letter').val().toUpperCase();
+                    if (rowLetter === selectedLetter) {
+                        duplicateCount++;
+                    }
+                }
             });
+            
+            if (duplicateCount > 0) {
+                alert('Output letter "' + selectedLetter + '" is already used in this objective. Please use a different letter.');
+                const newLetter = WorkPlanManager.getNextAvailableOutputLetter($objectiveItem);
+                $input.val(newLetter);
+                return;
+            }
+            
+            // Sort outputs after change
+            WorkPlanManager.sortOutputs($objectiveItem);
             WorkPlanManager.updatePreview();
         },
         
-        updateObjectiveNumbers: function() {
+        sortGoals: function() {
+            const $container = $('#goals-container');
+            const $goals = $container.find('.wpm-goal-item').sort(function(a, b) {
+                const letterA = $(a).find('.goal-letter-select').val();
+                const letterB = $(b).find('.goal-letter-select').val();
+                return letterA.localeCompare(letterB);
+            });
+            
+            $container.empty().append($goals);
+        },
+        
+        sortObjectives: function($goalItem) {
+            const $container = $goalItem.find('.wpm-objectives-container');
+            const $objectives = $container.find('.wpm-objective-item').sort(function(a, b) {
+                const numA = parseInt($(a).find('.objective-number-input').val()) || 999;
+                const numB = parseInt($(b).find('.objective-number-input').val()) || 999;
+                return numA - numB;
+            });
+            
+            $container.empty().append($objectives);
+        },
+        
+        sortOutputs: function($objectiveItem) {
+            const $container = $objectiveItem.find('.wpm-outputs-container');
+            const $outputs = $container.find('.wpm-output-row').sort(function(a, b) {
+                const letterA = $(a).find('.output-letter').val().toUpperCase();
+                const letterB = $(b).find('.output-letter').val().toUpperCase();
+                return letterA.localeCompare(letterB);
+            });
+            
+            $container.empty().append($outputs);
+        },
+        
+        isGoalLetterUnique: function(letter, excludeId) {
+            let isUnique = true;
             $('.wpm-goal-item').each(function() {
-                $(this).find('.wpm-objective-item').each(function(index) {
-                    const number = index + 1;
-                    $(this).find('.objective-number').text(number);
-                    $(this).find('.objective-number-input').val(number);
-                });
+                const $goal = $(this);
+                const goalId = $goal.find('.goal-id').val();
+                const goalLetter = $goal.find('.goal-letter-select').val();
+                
+                if (goalId !== excludeId && goalLetter === letter) {
+                    isUnique = false;
+                    return false;
+                }
             });
-            WorkPlanManager.updatePreview();
+            return isUnique;
+        },
+        
+        isObjectiveNumberUnique: function(number, excludeId, $goalItem) {
+            let isUnique = true;
+            $goalItem.find('.wpm-objective-item').each(function() {
+                const $objective = $(this);
+                const objectiveId = $objective.find('.objective-id').val();
+                const objectiveNumber = parseInt($objective.find('.objective-number-input').val());
+                
+                if (objectiveId !== excludeId && objectiveNumber === parseInt(number)) {
+                    isUnique = false;
+                    return false;
+                }
+            });
+            return isUnique;
+        },
+        
+        findDuplicateOutputLetters: function(outputs) {
+            const letters = {};
+            const duplicates = [];
+            
+            outputs.forEach(function(output) {
+                const letter = output.output_letter.toUpperCase();
+                if (letter) {
+                    if (letters[letter]) {
+                        if (duplicates.indexOf(letter) === -1) {
+                            duplicates.push(letter);
+                        }
+                    } else {
+                        letters[letter] = true;
+                    }
+                }
+            });
+            
+            return duplicates;
+        },
+        
+        getNextAvailableGoalLetter: function() {
+            const usedLetters = [];
+            $('.wpm-goal-item').each(function() {
+                const letter = $(this).find('.goal-letter-select').val();
+                if (letter) {
+                    usedLetters.push(letter);
+                }
+            });
+            
+            for (let i = 65; i <= 90; i++) {
+                const letter = String.fromCharCode(i);
+                if (usedLetters.indexOf(letter) === -1) {
+                    return letter;
+                }
+            }
+            
+            return 'A';
+        },
+        
+        getNextAvailableObjectiveNumber: function($goalItem) {
+            const usedNumbers = [];
+            $goalItem.find('.wpm-objective-item').each(function() {
+                const number = parseInt($(this).find('.objective-number-input').val());
+                if (!isNaN(number)) {
+                    usedNumbers.push(number);
+                }
+            });
+            
+            for (let i = 1; i <= 100; i++) {
+                if (usedNumbers.indexOf(i) === -1) {
+                    return i;
+                }
+            }
+            
+            return 1;
+        },
+        
+        getNextAvailableOutputLetter: function($objectiveItem) {
+            const usedLetters = [];
+            $objectiveItem.find('.output-letter').each(function() {
+                const letter = $(this).val().toUpperCase();
+                if (letter) {
+                    usedLetters.push(letter);
+                }
+            });
+            
+            // Use uppercase letters A-Z
+            for (let i = 65; i <= 90; i++) {
+                const letter = String.fromCharCode(i);
+                if (usedLetters.indexOf(letter) === -1) {
+                    return letter;
+                }
+            }
+            
+            return 'A';
         },
         
         handleAutoSave: function() {
@@ -533,7 +754,6 @@ jQuery(document).ready(function($) {
                 },
                 success: function(response) {
                     if (response.success) {
-                        // Handle file download
                         window.open(response.data.download_url, '_blank');
                     } else {
                         alert('Failed to export work plan: ' + response.data);
@@ -548,137 +768,23 @@ jQuery(document).ready(function($) {
         },
         
         updatePreview: function() {
-            // This will be implemented using React components
             const workplanData = WorkPlanManager.collectWorkplanData();
             WorkPlanManager.renderPreview(workplanData);
         },
         
-        validateGoalLetter: function() {
-            const $select = $(this);
-            const $goalItem = $select.closest('.wpm-goal-item');
-            const selectedLetter = $select.val();
-            const currentGoalId = $goalItem.find('.goal-id').val();
-            
-            if (!selectedLetter) return;
-            
-            // Check for duplicates in other goals
-            let isDuplicate = false;
-            $('.wpm-goal-item').each(function() {
-                const $otherGoal = $(this);
-                const otherGoalId = $otherGoal.find('.goal-id').val();
-                const otherLetter = $otherGoal.find('.goal-letter-select').val();
-                
-                if (currentGoalId !== otherGoalId && selectedLetter === otherLetter) {
-                    isDuplicate = true;
-                    return false;
-                }
-            });
-            
-            if (isDuplicate) {
-                alert('Goal letter "' + selectedLetter + '" is already used. Please select a different letter.');
-                WorkPlanManager.suggestNextGoalLetter($goalItem);
-            }
-        },
-        
-        validateObjectiveNumber: function() {
-            const $input = $(this);
-            const $objectiveItem = $input.closest('.wpm-objective-item');
-            const $goalItem = $objectiveItem.closest('.wpm-goal-item');
-            const selectedNumber = parseInt($input.val());
-            const currentObjectiveId = $objectiveItem.find('.objective-id').val();
-            
-            if (!selectedNumber) return;
-            
-            // Check for duplicates in other objectives within the same goal
-            let isDuplicate = false;
-            $goalItem.find('.wpm-objective-item').each(function() {
-                const $otherObjective = $(this);
-                const otherObjectiveId = $otherObjective.find('.objective-id').val();
-                const otherNumber = parseInt($otherObjective.find('.objective-number-input').val());
-                
-                if (currentObjectiveId !== otherObjectiveId && selectedNumber === otherNumber) {
-                    isDuplicate = true;
-                    return false;
-                }
-            });
-            
-            if (isDuplicate) {
-                alert('Objective number "' + selectedNumber + '" is already used in this goal. Please select a different number.');
-                WorkPlanManager.suggestNextObjectiveNumber($goalItem, $objectiveItem);
-            }
-        },
-        
-        validateOutputLetter: function() {
-            const $input = $(this);
-            const $objectiveItem = $input.closest('.wpm-objective-item');
-            const selectedLetter = $input.val().toLowerCase();
-            const $currentRow = $input.closest('.wpm-output-row');
-            
-            if (!selectedLetter) return;
-            
-            // Check for duplicates in other output rows within the same objective
-            let duplicateCount = 0;
-            $objectiveItem.find('.wpm-output-row').each(function() {
-                const $row = $(this);
-                const rowLetter = $row.find('.output-letter').val().toLowerCase();
-                if (rowLetter === selectedLetter) {
-                    duplicateCount++;
-                }
-            });
-            
-            if (duplicateCount > 1) {
-                alert('Output letter "' + selectedLetter + '" is already used in this objective. Please select a different letter.');
-                $input.val('').focus();
-            }
-        },
-        
-        suggestNextGoalLetter: function($goalItem) {
-            const usedLetters = [];
-            $('.wpm-goal-item').each(function() {
-                const letter = $(this).find('.goal-letter-select').val();
-                if (letter && letter.trim()) {
-                    usedLetters.push(letter.trim());
-                }
-            });
-            
-            // Find first available letter A-Z
-            for (let i = 65; i <= 90; i++) {
-                const letter = String.fromCharCode(i);
-                if (!usedLetters.includes(letter)) {
-                    $goalItem.find('.goal-letter-select').val(letter);
-                    $goalItem.find('.goal-letter').text(letter);
-                    return;
-                }
-            }
-            
-            // If all letters used, just set to A
-            $goalItem.find('.goal-letter-select').val('A');
-            $goalItem.find('.goal-letter').text('A');
-        },
-        
-        suggestNextObjectiveNumber: function($goalItem, $objectiveItem) {
-            const usedNumbers = [];
-            $goalItem.find('.wpm-objective-item').each(function() {
-                const number = parseInt($(this).find('.objective-number-input').val());
-                if (!isNaN(number)) {
-                    usedNumbers.push(number);
-                }
-            });
-            
-            // Find first available number starting from 1
-            let suggestedNumber = 1;
-            while (usedNumbers.includes(suggestedNumber)) {
-                suggestedNumber++;
-            }
-            
-            $objectiveItem.find('.objective-number-input').val(suggestedNumber);
-            $objectiveItem.find('.objective-number').text(suggestedNumber);
-        },
-        
         collectWorkplanData: function() {
+            // Get title with year appended
+            let title = $('#workplan-title').val();
+            const publishDate = $('#workplan-date').val();
+            const year = publishDate ? new Date(publishDate).getFullYear() : new Date().getFullYear();
+            
+            // Remove any existing year and add current year
+            title = title.replace(/\s*-\s*\d{4}$/, '');
+            title = title + ' - ' + year;
+            
             const workplanData = {
                 id: WorkPlanManager.currentWorkplanId,
-                title: $('#workplan-title').val(),
+                title: title,
                 author: $('#workplan-author').val(),
                 grant_year: $('#grant-year option:selected').text() || '',
                 group: $('#workplan-group option:selected').text() || '',
@@ -686,14 +792,34 @@ jQuery(document).ready(function($) {
                 goals: []
             };
             
-            $('.wpm-goal-item').each(function() {
+            // Sort goals before collecting
+            const $sortedGoals = $('.wpm-goal-item').sort(function(a, b) {
+                const letterA = $(a).find('.goal-letter-select').val();
+                const letterB = $(b).find('.goal-letter-select').val();
+                return letterA.localeCompare(letterB);
+            });
+            
+            $sortedGoals.each(function() {
                 const $goalItem = $(this);
                 const goalData = WorkPlanManager.getGoalFormData($goalItem);
                 goalData.objectives = [];
                 
-                $goalItem.find('.wpm-objective-item').each(function() {
+                // Sort objectives before collecting
+                const $sortedObjectives = $goalItem.find('.wpm-objective-item').sort(function(a, b) {
+                    const numA = parseInt($(a).find('.objective-number-input').val()) || 999;
+                    const numB = parseInt($(b).find('.objective-number-input').val()) || 999;
+                    return numA - numB;
+                });
+                
+                $sortedObjectives.each(function() {
                     const $objectiveItem = $(this);
                     const objectiveData = WorkPlanManager.getObjectiveFormData($objectiveItem);
+                    
+                    // Sort outputs
+                    objectiveData.outputs.sort(function(a, b) {
+                        return a.output_letter.toUpperCase().localeCompare(b.output_letter.toUpperCase());
+                    });
+                    
                     goalData.objectives.push(objectiveData);
                 });
                 
@@ -716,7 +842,7 @@ jQuery(document).ready(function($) {
             const outputs = [];
             $objectiveItem.find('.wpm-output-row').each(function() {
                 outputs.push({
-                    output_letter: $(this).find('.output-letter').val(),
+                    output_letter: $(this).find('.output-letter').val().toUpperCase(),
                     output_description: $(this).find('.output-description').val()
                 });
             });
@@ -739,6 +865,11 @@ jQuery(document).ready(function($) {
                 return;
             }
             
+            // Sort goals by letter before populating
+            goals.sort(function(a, b) {
+                return (a.goal_letter || 'A').localeCompare(b.goal_letter || 'A');
+            });
+            
             goals.forEach(function(goal) {
                 const goalHtml = WorkPlanManager.getGoalTemplate(goal);
                 $('#goals-container').append(goalHtml);
@@ -746,8 +877,14 @@ jQuery(document).ready(function($) {
                 const $goalItem = $('.wpm-goal-item').last();
                 $goalItem.find('.goal-letter-select').val(goal.goal_letter || 'A');
                 
-                // Populate objectives
+                // Sort objectives by number before populating
                 if (goal.objectives && goal.objectives.length > 0) {
+                    goal.objectives.sort(function(a, b) {
+                        const numA = parseInt(a.objective_number) || parseInt(a.number) || 999;
+                        const numB = parseInt(b.objective_number) || parseInt(b.number) || 999;
+                        return numA - numB;
+                    });
+                    
                     goal.objectives.forEach(function(objective) {
                         const objectiveHtml = WorkPlanManager.getObjectiveTemplate(objective);
                         $goalItem.find('.wpm-objectives-container').append(objectiveHtml);
@@ -758,24 +895,26 @@ jQuery(document).ready(function($) {
                         $objectiveItem.find('.timeline-description').val(objective.timeline_description || '');
                         $objectiveItem.find('.measureable-outcomes').val(objective.measureable_outcomes || '');
                         
-                        // Populate outputs
+                        // Sort outputs by letter before populating
                         if (objective.outputs && objective.outputs.length > 0) {
+                            objective.outputs.sort(function(a, b) {
+                                return (a.output_letter || 'A').toUpperCase().localeCompare((b.output_letter || 'A').toUpperCase());
+                            });
+                            
                             objective.outputs.forEach(function(output) {
+                                // Convert to uppercase
+                                output.output_letter = output.output_letter.toUpperCase();
                                 WorkPlanManager.addOutputToObjective($objectiveItem, output);
                             });
                         }
                     });
                 }
             });
-            
-            if (goals.length > 0) {
-                $('#objectives-section').show();
-            }
         },
         
         getGoalTemplate: function(data) {
             let template = $('#goal-template').html();
-            template = template.replace(/{{goal_id}}/g, data.goal_id || '0');
+            template = template.replace(/{{goal_id}}/g, data.goal_id || data.id || '0');
             template = template.replace(/{{goal_title}}/g, data.goal_title || data.title || '');
             template = template.replace(/{{goal_letter}}/g, data.goal_letter || 'A');
             template = template.replace(/{{goal_description}}/g, data.goal_description || '');
@@ -801,19 +940,18 @@ jQuery(document).ready(function($) {
         },
         
         renderPreview: function(workplanData) {
-            // Using WordPress React components for the preview
             const { createElement: e, Component } = wp.element;
             const { render } = wp.element;
             
             class WorkplanPreview extends Component {
                 render() {
-                    return e('div', { className: 'wmp-preview-table' },
-                        e('h3', null, workplanData.title),
+                    return e('div', { className: 'wpm-preview-table' },
+                        e('h3', null, workplanData.title || 'Untitled Work Plan'),
                         e('div', { className: 'wpm-preview-info' },
-                            e('p', null, `Author: ${workplanData.author}`),
-                            e('p', null, `Group: ${workplanData.group}`),
-                            e('p', null, `Grant Year: ${workplanData.grant_year}`),
-                            e('p', null, `Status: ${workplanData.internal_status}`)
+                            e('p', null, e('strong', null, 'Author: '), workplanData.author),
+                            e('p', null, e('strong', null, 'Group: '), workplanData.group || 'Not set'),
+                            e('p', null, e('strong', null, 'Grant Year: '), workplanData.grant_year || 'Not set'),
+                            e('p', null, e('strong', null, 'Status: '), workplanData.internal_status || 'Draft')
                         ),
                         e('table', { className: 'wpm-preview-data-table' },
                             e('thead', null,
@@ -828,29 +966,36 @@ jQuery(document).ready(function($) {
                                 )
                             ),
                             e('tbody', null,
-                                workplanData.goals.map(goal =>
-                                    goal.objectives && goal.objectives.length > 0 ?
-                                        goal.objectives.map((objective, objIndex) =>
-                                            e('tr', { key: `${goal.id}-${objective.id}-${objIndex}` },
-                                                objIndex === 0 ? e('td', { rowSpan: goal.objectives.length }, `${goal.letter}. ${goal.title}`) : null,
-                                                objIndex === 0 ? e('td', { rowSpan: goal.objectives.length }, goal.description) : null,
-                                                e('td', null, `${objective.number}. ${objective.title}`),
-                                                e('td', null, objective.description),
-                                                e('td', null, objective.timeline_description || ''),
-                                                e('td', null, objective.measureable_outcomes || ''),
-                                                e('td', null,
-                                                    objective.outputs && objective.outputs.map((output, outIndex) =>
-                                                        e('div', { key: outIndex }, `${output.output_letter}. ${output.output_description}`)
+                                workplanData.goals.length > 0 ?
+                                    workplanData.goals.map(goal =>
+                                        goal.objectives && goal.objectives.length > 0 ?
+                                            goal.objectives.map((objective, objIndex) =>
+                                                e('tr', { key: `${goal.id}-${objective.id}-${objIndex}` },
+                                                    objIndex === 0 ? e('td', { rowSpan: goal.objectives.length }, `${goal.letter}. ${goal.title}`) : null,
+                                                    objIndex === 0 ? e('td', { rowSpan: goal.objectives.length }, goal.description) : null,
+                                                    e('td', null, `${objective.number}. ${objective.title}`),
+                                                    e('td', null, objective.description),
+                                                    e('td', null, objective.timeline_description || ''),
+                                                    e('td', null, objective.measureable_outcomes || ''),
+                                                    e('td', null,
+                                                        objective.outputs && objective.outputs.map((output, outIndex) =>
+                                                            output.output_letter || output.output_description ?
+                                                                e('div', { key: outIndex }, `${output.output_letter}. ${output.output_description}`)
+                                                                : null
+                                                        )
                                                     )
                                                 )
+                                            ) :
+                                            e('tr', { key: goal.id },
+                                                e('td', null, `${goal.letter}. ${goal.title}`),
+                                                e('td', null, goal.description),
+                                                e('td', { colSpan: 5 }, 'No objectives defined')
                                             )
-                                        ) :
-                                        e('tr', { key: goal.id },
-                                            e('td', null, `${goal.letter}. ${goal.title}`),
-                                            e('td', null, goal.description),
-                                            e('td', { colSpan: 5 }, 'No objectives defined')
-                                        )
-                                )
+                                    ) :
+                                    e('tr', null,
+                                        e('td', { colSpan: 7, style: { textAlign: 'center', fontStyle: 'italic' } }, 
+                                          'No goals have been added yet')
+                                    )
                             )
                         )
                     );
