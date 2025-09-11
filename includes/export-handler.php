@@ -164,7 +164,7 @@ class WPM_Export_Handler {
                     'number' => get_field('objective_number', $objective->ID),
                     'description' => get_field('objective_description', $objective->ID),
                     'timeline_description' => get_field('timeline_description', $objective->ID),
-                    'measureable_outcomes' => get_field('measureable_outcomes', $objective->ID),
+                    //'measureable_outcomes' => get_field('measureable_outcomes', $objective->ID),
                     'outputs' => $outputs
                 );
                 
@@ -237,7 +237,7 @@ class WPM_Export_Handler {
         $xml_content .= '<Column ss:Width="80"/>' . "\n";  // Objective
         $xml_content .= '<Column ss:Width="200"/>' . "\n"; // Objective Description
         $xml_content .= '<Column ss:Width="150"/>' . "\n"; // Timeline
-        $xml_content .= '<Column ss:Width="150"/>' . "\n"; // Measurable Outcomes
+        //$xml_content .= '<Column ss:Width="150"/>' . "\n"; // Measurable Outcomes
         $xml_content .= '<Column ss:Width="200"/>' . "\n"; // Outputs
         
         // Add metadata rows
@@ -260,7 +260,9 @@ class WPM_Export_Handler {
         
         // Add header row
         $xml_content .= '<Row>' . "\n";
-        $headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Measurable Outcomes', 'Outputs');
+        //$headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Measurable Outcomes', 'Outputs');
+        $headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Outputs/Activities');
+
         foreach ($headers as $header) {
             $xml_content .= '<Cell ss:StyleID="Header"><Data ss:Type="String">' . htmlspecialchars($header) . '</Data></Cell>' . "\n";
         }
@@ -286,7 +288,7 @@ class WPM_Export_Handler {
                     $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['number'] . '. ' . $objective['title']) . '</Data></Cell>' . "\n";
                     $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['description']) . '</Data></Cell>' . "\n";
                     $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['timeline_description']) . '</Data></Cell>' . "\n";
-                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['measureable_outcomes']) . '</Data></Cell>' . "\n";
+                    //$xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['measureable_outcomes']) . '</Data></Cell>' . "\n";
                     $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($outputs_text) . '</Data></Cell>' . "\n";
                     $xml_content .= '</Row>' . "\n";
                 }
@@ -295,7 +297,7 @@ class WPM_Export_Handler {
                 $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($goal['letter'] . '. ' . $goal['title']) . '</Data></Cell>' . "\n";
                 $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($goal['description']) . '</Data></Cell>' . "\n";
                 $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">No objectives defined</Data></Cell>' . "\n";
-                $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
+                //$xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
                 $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
                 $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
                 $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
@@ -336,7 +338,8 @@ class WPM_Export_Handler {
         fputcsv($csv_handle, array()); // Empty row
         
         // Add header row
-        $headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Measurable Outcomes', 'Outputs');
+        //$headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Measurable Outcomes', 'Outputs');
+        $headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Outputs/Activities');
         fputcsv($csv_handle, $headers);
         
         // Add data rows
@@ -359,7 +362,7 @@ class WPM_Export_Handler {
                         $objective['number'] . '. ' . $objective['title'],
                         $objective['description'],
                         $objective['timeline_description'],
-                        $objective['measureable_outcomes'],
+                        //$objective['measureable_outcomes'],
                         $outputs_text
                     );
                     
@@ -370,7 +373,7 @@ class WPM_Export_Handler {
                     $goal['letter'] . '. ' . $goal['title'],
                     $goal['description'],
                     'No objectives defined',
-                    '',
+                    //'',
                     '',
                     '',
                     ''

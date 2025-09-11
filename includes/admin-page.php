@@ -297,16 +297,18 @@ $group_terms = get_terms(array(
                 </div>
             </div>
             
+            <!--removed for vers. 1.2.2 
             <div class="wpm-form-row">
                 <div class="wpm-form-group wpm-form-group-full">
                     <label><?php _e('Measurable Outcomes:', 'work-plan-manager'); ?></label>
                     <textarea class="measureable-outcomes" rows="3">{{measureable_outcomes}}</textarea>
                 </div>
             </div>
+            //end removed -->
             
             <div class="wpm-outputs-section">
                 <div class="wpm-outputs-header">
-                    <label><?php _e('Outputs:', 'work-plan-manager'); ?></label>
+                    <label><?php _e('Outputs/Activities:', 'work-plan-manager'); ?></label>
                     <button type="button" class="button button-small add-output"><?php _e('Add Output', 'work-plan-manager'); ?></button>
                 </div>
                 <div class="wpm-outputs-container"></div>
@@ -325,11 +327,11 @@ $group_terms = get_terms(array(
 <script type="text/template" id="output-template">
     <div class="wpm-output-row">
         <div class="wpm-form-group">
-            <label><?php _e('Output Letter:', 'work-plan-manager'); ?></label>
+            <label><?php _e('Output/Activity Letter:', 'work-plan-manager'); ?></label>
             <input type="text" class="output-letter" value="{{output_letter}}" maxlength="1" style="text-transform: uppercase;">
         </div>
         <div class="wpm-form-group wpm-form-group-full">
-            <label><?php _e('Output Description:', 'work-plan-manager'); ?></label>
+            <label><?php _e('Output/Activity Description:', 'work-plan-manager'); ?></label>
             <textarea class="output-description" rows="2">{{output_description}}</textarea>
         </div>
         <div class="wpm-form-group">

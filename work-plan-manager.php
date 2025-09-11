@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Work Plan Manager
  * Description: A plugin to manage Work Plans, Goals, and Objectives with a streamlined interface
- * Version: 1.2.1
+ * Version: 1.3
  * Author: KC Web Programmers
  * Text Domain: work-plan-manager
  */
@@ -282,7 +282,7 @@ class WorkPlanManager {
         $objective_number = intval($_POST['objective_number']);
         $objective_description = sanitize_textarea_field($_POST['objective_description']);
         $timeline_description = sanitize_text_field($_POST['timeline_description']);
-        $measureable_outcomes = sanitize_textarea_field($_POST['measureable_outcomes']);
+        //$measureable_outcomes = sanitize_textarea_field($_POST['measureable_outcomes']);
         $outputs = json_decode(stripslashes($_POST['outputs']), true);
         
         // Check permission for parent workplan
@@ -317,7 +317,7 @@ class WorkPlanManager {
                 update_field('objective_number', $objective_number, $result);
                 update_field('objective_description', $objective_description, $result);
                 update_field('timeline_description', $timeline_description, $result);
-                update_field('measureable_outcomes', $measureable_outcomes, $result);
+                //update_field('measureable_outcomes', $measureable_outcomes, $result);
                 update_field('objective_outputs', $outputs, $result);
                 
                 // Update the parent goal's work_plan_objectives field
@@ -393,7 +393,7 @@ class WorkPlanManager {
                     'objective_number' => get_field('objective_number', $objective->ID),
                     'objective_description' => get_field('objective_description', $objective->ID),
                     'timeline_description' => get_field('timeline_description', $objective->ID),
-                    'measureable_outcomes' => get_field('measureable_outcomes', $objective->ID),
+                    //'measureable_outcomes' => get_field('measureable_outcomes', $objective->ID),
                     'outputs' => get_field('objective_outputs', $objective->ID) ?: array(),
                 );
             }

@@ -448,7 +448,7 @@ jQuery(document).ready(function($) {
                 objective_number: objectiveNumber,
                 objective_description: '',
                 timeline_description: '',
-                measureable_outcomes: ''
+                //measureable_outcomes: ''
             });
             
             $goalItem.find('.wpm-objectives-container').append(objectiveHtml);
@@ -512,7 +512,7 @@ jQuery(document).ready(function($) {
                     objective_number: objectiveData.number,
                     objective_description: objectiveData.description,
                     timeline_description: objectiveData.timeline_description,
-                    measureable_outcomes: objectiveData.measureable_outcomes,
+                    //measureable_outcomes: objectiveData.measureable_outcomes,
                     outputs: JSON.stringify(objectiveData.outputs),
                     nonce: wpm_ajax.nonce
                 },
@@ -588,7 +588,7 @@ jQuery(document).ready(function($) {
                 objective_number: objectiveNumber,
                 objective_description: objectiveData.description,
                 timeline_description: objectiveData.timeline_description,
-                measureable_outcomes: objectiveData.measureable_outcomes
+                //measureable_outcomes: objectiveData.measureable_outcomes
             });
             
             $objectiveItem.after(duplicatedObjectiveHtml);
@@ -985,7 +985,7 @@ jQuery(document).ready(function($) {
                 number: $objectiveItem.find('.objective-number-input').val(),
                 description: $objectiveItem.find('.objective-description').val(),
                 timeline_description: $objectiveItem.find('.timeline-description').val(),
-                measureable_outcomes: $objectiveItem.find('.measureable-outcomes').val(),
+                //measureable_outcomes: $objectiveItem.find('.measureable-outcomes').val(),
                 outputs: outputs
             };
         },
@@ -1032,7 +1032,7 @@ jQuery(document).ready(function($) {
                         
                         // Set the timeline and measurable outcomes values
                         $objectiveItem.find('.timeline-description').val(objective.timeline_description || '');
-                        $objectiveItem.find('.measureable-outcomes').val(objective.measureable_outcomes || '');
+                        //$objectiveItem.find('.measureable-outcomes').val(objective.measureable_outcomes || '');
                         
                         // Update header title
                         if (objective.objective_title || objective.title) {
@@ -1077,7 +1077,7 @@ jQuery(document).ready(function($) {
             template = template.replace(/{{objective_number}}/g, data.objective_number || data.number || '1');
             template = template.replace(/{{objective_description}}/g, data.objective_description || data.description || '');
             template = template.replace(/{{timeline_description}}/g, data.timeline_description || '');
-            template = template.replace(/{{measureable_outcomes}}/g, data.measureable_outcomes || '');
+            //template = template.replace(/{{measureable_outcomes}}/g, data.measureable_outcomes || '');
             
             // Add title to header if it exists
             const titleSuffix = (data.objective_title || data.title) ? ': ' + (data.objective_title || data.title) : '';
@@ -1115,8 +1115,8 @@ jQuery(document).ready(function($) {
                                     e('th', null, 'Objective'),
                                     e('th', null, 'Objective Description'),
                                     e('th', null, 'Timeline'),
-                                    e('th', null, 'Measurable Outcomes'),
-                                    e('th', null, 'Outputs')
+                                    //e('th', null, 'Measurable Outcomes'),
+                                    e('th', null, 'Outputs/Activities')
                                 )
                             ),
                             e('tbody', null,
@@ -1130,7 +1130,7 @@ jQuery(document).ready(function($) {
                                                     e('td', null, `${objective.number}. ${objective.title}`),
                                                     e('td', null, objective.description),
                                                     e('td', null, objective.timeline_description || ''),
-                                                    e('td', null, objective.measureable_outcomes || ''),
+                                                    //e('td', null, objective.measureable_outcomes || ''),
                                                     e('td', null,
                                                         objective.outputs && objective.outputs.map((output, outIndex) =>
                                                             output.output_letter || output.output_description ?
@@ -1143,11 +1143,13 @@ jQuery(document).ready(function($) {
                                             e('tr', { key: goal.id },
                                                 e('td', null, `${goal.letter}. ${goal.title}`),
                                                 e('td', null, goal.description),
-                                                e('td', { colSpan: 5 }, 'No objectives defined')
+                                                //e('td', { colSpan: 5 }, 'No objectives defined')
+                                                e('td', { colSpan: 4 }, 'No objectives defined')
                                             )
                                     ) :
                                     e('tr', null,
-                                        e('td', { colSpan: 7, style: { textAlign: 'center', fontStyle: 'italic' } }, 
+                                        //e('td', { colSpan: 7, style: { textAlign: 'center', fontStyle: 'italic' } }, 
+                                        e('td', { colSpan: 6, style: { textAlign: 'center', fontStyle: 'italic' } }, 
                                           'No goals have been added yet')
                                     )
                             )

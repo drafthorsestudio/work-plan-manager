@@ -47,7 +47,6 @@ The plugin expects these ACF fields to be configured:
 - `objective_number` - Number field
 - `objective_description` - Textarea field
 - `timeline_description` - Text field (moved from Goals)
-- `measureable_outcomes` - Textarea field (new field)
 - `objective_outputs` - Repeater field with:
   - `output_letter` - Text field
   - `output_description` - Textarea field
@@ -64,7 +63,6 @@ The plugin uses ACF relationship fields to connect the post types:
 Recent updates have modified the field structure:
 - ✅ **Grant quarters eliminated** - Only grant year taxonomy is used (no sub-levels)
 - ✅ **Timeline moved** - `timeline_description` moved from Goals to Objectives
-- ✅ **New field added** - `measureable_outcomes` textarea added to Objectives
 - ✅ **Duplicate validation** - Built-in checks prevent duplicate goal letters, objective numbers, and output letters
 
 ### Optional Plugins
