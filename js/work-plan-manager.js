@@ -1,3 +1,8 @@
+console.log('work-plan-manager.js loaded successfully');
+
+// Define WorkPlanManager globally
+var WorkPlanManager;
+
 jQuery(document).ready(function($) {
     'use strict';
     
@@ -13,7 +18,7 @@ jQuery(document).ready(function($) {
         }
     }
     
-    const WorkPlanManager = {
+    WorkPlanManager = {
         currentWorkplanId: 0,
         currentGoalId: 0,
         
@@ -53,21 +58,107 @@ jQuery(document).ready(function($) {
             $(document).on('change', '.objective-number-input', this.handleObjectiveReorder);
             $(document).on('change', '.output-letter', this.handleOutputReorder);
             
+            // Collapse/Expand events
+            $(document).on('click', '.wpm-collapse-toggle', this.toggleCollapse);
+            $(document).on('blur', '.goal-title, .objective-title', this.updateHeaderTitle);
+            $(document).on('keyup', '.goal-title, .objective-title', this.updateHeaderTitle);
+            
             // Auto-save functionality
             $(document).on('blur', 'input, textarea, select', this.handleAutoSave);
         },
         
         initializeComponents: function() {
-            // Hide objectives section on load
+            // Hide objectives section on load (standalone section removed)
             $('#objectives-section').hide();
         },
-        
+
+        scrollToElement: function($element) {
+            if ($element && $element.length) {
+                // WordPress admin needs special handling
+                const adminBar = jQuery('#wpadminbar');
+                const adminBarHeight = adminBar.length ? adminBar.outerHeight() : 0;
+                
+                // Get the scroll container (WordPress admin uses #wpbody)
+                const scrollContainer = jQuery('#wpbody').length ? jQuery('#wpbody') : jQuery('html, body');
+                
+                // Calculate target position
+                const elementTop = $element.offset().top;
+                const targetPosition = elementTop - adminBarHeight - 50;
+                
+                console.log('Scrolling to position:', targetPosition);
+                
+                // Animate scroll
+                scrollContainer.animate({
+                    scrollTop: targetPosition
+                }, 500);
+                
+                // Fallback: Also try window.scrollTo
+                setTimeout(function() {
+                    window.scrollTo({
+                        top: targetPosition,
+                        behavior: 'smooth'
+                    });
+                }, 100);
+            }
+        },
+
         showLoading: function() {
             $('#wpm-loading').show();
         },
         
         hideLoading: function() {
             $('#wpm-loading').hide();
+        },
+        
+        toggleCollapse: function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $button = $(this);
+            const $item = $button.closest('.wpm-goal-item, .wpm-objective-item');
+            
+            $item.toggleClass('wpm-collapsed');
+            
+            // Update button text
+            if ($item.hasClass('wpm-collapsed')) {
+                $button.text('Expand');
+            } else {
+                $button.text('Collapse');
+            }
+            
+            // Save collapse state in data attribute
+            $item.attr('data-collapsed', $item.hasClass('wpm-collapsed'));
+        },
+        
+        updateHeaderTitle: function() {
+            const $input = $(this);
+            const $item = $input.closest('.wpm-goal-item, .wpm-objective-item');
+            const title = $input.val();
+            
+            if ($item.hasClass('wpm-goal-item')) {
+                const letter = $item.find('.goal-letter-select').val();
+                const $subtitle = $item.find('.wpm-header-subtitle');
+                if (title) {
+                    if ($subtitle.length) {
+                        $subtitle.text(': ' + title);
+                    } else {
+                        $item.find('.goal-letter').after('<span class="wpm-header-subtitle">: ' + title + '</span>');
+                    }
+                } else {
+                    $subtitle.text('');
+                }
+            } else if ($item.hasClass('wpm-objective-item')) {
+                const number = $item.find('.objective-number-input').val();
+                const $subtitle = $item.find('.wpm-header-subtitle');
+                if (title) {
+                    if ($subtitle.length) {
+                        $subtitle.text(': ' + title);
+                    } else {
+                        $item.find('.objective-number').after('<span class="wpm-header-subtitle">: ' + title + '</span>');
+                    }
+                } else {
+                    $subtitle.text('');
+                }
+            }
         },
         
         showNewWorkplanForm: function() {
@@ -232,8 +323,14 @@ jQuery(document).ready(function($) {
             // Set the goal letter in the select
             const $newGoal = $('.wpm-goal-item').last();
             $newGoal.find('.goal-letter-select').val(goalLetter);
-        },
-        
+            
+            // ADD THESE TWO LINES IF THEY'RE MISSING:
+            // Scroll to the new goal
+            WorkPlanManager.scrollToElement($newGoal);
+            
+            // Focus on the title field
+            $newGoal.find('.goal-title').focus();
+        },        
         saveGoal: function() {
             const $goalItem = $(this).closest('.wpm-goal-item');
             const goalData = WorkPlanManager.getGoalFormData($goalItem);
@@ -267,6 +364,7 @@ jQuery(document).ready(function($) {
                     if (response.success) {
                         $goalItem.attr('data-goal-id', response.data.goal_id);
                         $goalItem.find('.goal-id').val(response.data.goal_id);
+                        WorkPlanManager.updateHeaderTitle.call($goalItem.find('.goal-title')[0]);
                         WorkPlanManager.sortGoals();
                         WorkPlanManager.updatePreview();
                         alert('Goal saved successfully!');
@@ -337,6 +435,7 @@ jQuery(document).ready(function($) {
             $goalItem.after(duplicatedGoalHtml);
             const $newGoal = $goalItem.next('.wpm-goal-item');
             $newGoal.find('.goal-letter-select').val(goalLetter);
+            WorkPlanManager.updateHeaderTitle.call($newGoal.find('.goal-title')[0]);
         },
         
         addNewObjective: function() {
@@ -353,8 +452,23 @@ jQuery(document).ready(function($) {
             });
             
             $goalItem.find('.wpm-objectives-container').append(objectiveHtml);
-        },
-        
+            
+            // ADD THESE LINES IF MISSING:
+            // Get the new objective element
+            const $newObjective = $goalItem.find('.wpm-objective-item').last();
+            
+            // Expand the goal if it's collapsed
+            if ($goalItem.hasClass('wpm-collapsed')) {
+                $goalItem.removeClass('wpm-collapsed');
+                $goalItem.find('.wpm-collapse-toggle').first().text('Collapse');
+            }
+            
+            // Scroll to the new objective
+            WorkPlanManager.scrollToElement($newObjective);
+            
+            // Focus on the title field
+            $newObjective.find('.objective-title').focus();
+        },        
         saveObjective: function() {
             const $objectiveItem = $(this).closest('.wpm-objective-item');
             const $goalItem = $objectiveItem.closest('.wpm-goal-item');
@@ -406,6 +520,7 @@ jQuery(document).ready(function($) {
                     if (response.success) {
                         $objectiveItem.attr('data-objective-id', response.data.objective_id);
                         $objectiveItem.find('.objective-id').val(response.data.objective_id);
+                        WorkPlanManager.updateHeaderTitle.call($objectiveItem.find('.objective-title')[0]);
                         WorkPlanManager.sortObjectives($goalItem);
                         WorkPlanManager.updatePreview();
                         alert('Objective saved successfully!');
@@ -483,6 +598,8 @@ jQuery(document).ready(function($) {
             objectiveData.outputs.forEach(function(output) {
                 WorkPlanManager.addOutputToObjective($newObjective, output);
             });
+            
+            WorkPlanManager.updateHeaderTitle.call($newObjective.find('.objective-title')[0]);
         },
         
         addNewOutput: function() {
@@ -492,6 +609,21 @@ jQuery(document).ready(function($) {
                 output_letter: outputLetter,
                 output_description: ''
             });
+            
+            // Expand the objective if collapsed
+            if ($objectiveItem.hasClass('wpm-collapsed')) {
+                $objectiveItem.removeClass('wpm-collapsed');
+                $objectiveItem.find('.wpm-collapse-toggle').first().text('Collapse');
+            }
+            
+            // Get the new output row and focus on description
+            const $newOutput = $objectiveItem.find('.wpm-output-row').last();
+            
+            // Scroll to the new output
+            WorkPlanManager.scrollToElement($newOutput);
+            
+            // Focus on the description field
+            $newOutput.find('.output-description').focus();
         },
         
         addOutputToObjective: function($objectiveItem, outputData) {
@@ -867,7 +999,9 @@ jQuery(document).ready(function($) {
             
             // Sort goals by letter before populating
             goals.sort(function(a, b) {
-                return (a.goal_letter || 'A').localeCompare(b.goal_letter || 'A');
+                const letterA = a.goal_letter || 'A';
+                const letterB = b.goal_letter || 'A';
+                return letterA.localeCompare(letterB);
             });
             
             goals.forEach(function(goal) {
@@ -876,6 +1010,11 @@ jQuery(document).ready(function($) {
                 
                 const $goalItem = $('.wpm-goal-item').last();
                 $goalItem.find('.goal-letter-select').val(goal.goal_letter || 'A');
+                
+                // Update header title
+                if (goal.goal_title || goal.title) {
+                    WorkPlanManager.updateHeaderTitle.call($goalItem.find('.goal-title')[0]);
+                }
                 
                 // Sort objectives by number before populating
                 if (goal.objectives && goal.objectives.length > 0) {
@@ -894,6 +1033,11 @@ jQuery(document).ready(function($) {
                         // Set the timeline and measurable outcomes values
                         $objectiveItem.find('.timeline-description').val(objective.timeline_description || '');
                         $objectiveItem.find('.measureable-outcomes').val(objective.measureable_outcomes || '');
+                        
+                        // Update header title
+                        if (objective.objective_title || objective.title) {
+                            WorkPlanManager.updateHeaderTitle.call($objectiveItem.find('.objective-title')[0]);
+                        }
                         
                         // Sort outputs by letter before populating
                         if (objective.outputs && objective.outputs.length > 0) {
@@ -918,6 +1062,11 @@ jQuery(document).ready(function($) {
             template = template.replace(/{{goal_title}}/g, data.goal_title || data.title || '');
             template = template.replace(/{{goal_letter}}/g, data.goal_letter || 'A');
             template = template.replace(/{{goal_description}}/g, data.goal_description || '');
+            
+            // Add title to header if it exists
+            const titleSuffix = (data.goal_title || data.title) ? ': ' + (data.goal_title || data.title) : '';
+            template = template.replace(/{{title_suffix}}/g, titleSuffix);
+            
             return template;
         },
         
@@ -929,6 +1078,11 @@ jQuery(document).ready(function($) {
             template = template.replace(/{{objective_description}}/g, data.objective_description || data.description || '');
             template = template.replace(/{{timeline_description}}/g, data.timeline_description || '');
             template = template.replace(/{{measureable_outcomes}}/g, data.measureable_outcomes || '');
+            
+            // Add title to header if it exists
+            const titleSuffix = (data.objective_title || data.title) ? ': ' + (data.objective_title || data.title) : '';
+            template = template.replace(/{{title_suffix}}/g, titleSuffix);
+            
             return template;
         },
         
@@ -1008,6 +1162,9 @@ jQuery(document).ready(function($) {
             }
         }
     };
+
+    // Make it accessible from console (for debugging)
+    window.WorkPlanManager = WorkPlanManager;
     
     // Initialize the Work Plan Manager
     WorkPlanManager.init();

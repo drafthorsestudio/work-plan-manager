@@ -176,21 +176,25 @@
 
 .wpm-goal-header,
 .wpm-objective-header {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 12px 20px;
-    border-bottom: 1px solid #e1e8ed;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 12px 20px;
 }
 
-.wpm-goal-header h3,
-.wpm-objective-header h4 {
+.wpm-header-title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wpm-header-title h3,
+.wpm-header-title h4 {
     margin: 0;
-    color: #1e3a5f;
-    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
 }
-
 .wpm-goal-actions,
 .wpm-objective-actions {
     display: flex;
@@ -499,6 +503,233 @@
     padding: 12px 16px;
     border-radius: 6px;
     margin-bottom: 16px;
+}
+
+/* Collapsible Sections */
+.wpm-collapsible {
+    transition: all 0.3s ease;
+}
+
+.wpm-collapsed .wpm-goal-form,
+.wpm-collapsed .wpm-objective-form {
+    display: none;
+}
+
+.wpm-collapse-toggle {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+}
+
+.wpm-collapse-toggle:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.5);
+}
+
+.wpm-collapsed .wpm-collapse-toggle::before {
+    content: '▶ ';
+}
+
+.wpm-collapse-toggle::before {
+    content: '▼ ';
+}
+
+/* Header Title Extensions */
+.wpm-header-title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.wpm-header-subtitle {
+    font-weight: normal;
+    font-size: 14px;
+    opacity: 0.9;
+    margin-left: 8px;
+}
+
+/* Sage Green Color Scheme for Goals */
+.wpm-goal-item {
+    border-color: #a4c2a5;
+}
+
+.wpm-goal-header {
+    background: linear-gradient(135deg, #87a96b 0%, #6b8e4e 100%);
+    border-bottom-color: #5a7c4a;
+}
+
+.wpm-goal-header h3 {
+    color: #fff;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.wpm-goal-actions .button {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+.wpm-goal-actions .button:hover {
+    background: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.5);
+}
+
+.wpm-goal-form {
+    background: #f5f9f5;
+}
+
+.wpm-goal-item .wpm-form-group label {
+    color: #4a6b3b;
+}
+
+.wpm-goal-item .button-primary {
+    background: linear-gradient(135deg, #6b8e4e 0%, #5a7c4a 100%);
+}
+
+.wpm-goal-item .button-primary:hover {
+    background: linear-gradient(135deg, #5a7c4a 0%, #4a6b3b 100%);
+}
+
+.wpm-goal-item .button-secondary {
+    border-color: #87a96b;
+    color: #4a6b3b;
+}
+
+.wpm-goal-item .button-secondary:hover {
+    background: #e8f2e8;
+    border-color: #6b8e4e;
+}
+
+/* Gold Color Scheme for Objectives */
+.wpm-objective-item {
+    border-color: #d4af37;
+    background: #fff;
+}
+
+.wpm-objective-header {
+    background: linear-gradient(135deg, #d4af37 0%, #b8960f 100%);
+    border-bottom-color: #a08510;
+}
+
+.wpm-objective-header h4 {
+    color: #fff;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+}
+
+.wpm-objective-actions .button {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.wpm-objective-actions .button:hover {
+    background: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.5);
+}
+
+.wpm-objective-form {
+    background: #fffdf5;
+}
+
+.wpm-objective-item .wpm-form-group label {
+    color: #8b6914;
+}
+
+.wpm-objective-item .button-primary {
+    background: linear-gradient(135deg, #b8960f 0%, #a08510 100%);
+}
+
+.wpm-objective-item .button-primary:hover {
+    background: linear-gradient(135deg, #a08510 0%, #8b6914 100%);
+}
+
+.wpm-objective-item .button-secondary {
+    border-color: #d4af37;
+    color: #8b6914;
+}
+
+.wpm-objective-item .button-secondary:hover {
+    background: #fff9e6;
+    border-color: #b8960f;
+}
+
+/* Outputs Section within Objectives */
+.wpm-outputs-section {
+    background: #fff;
+    border: 1px solid #e6d4a3;
+}
+
+.wpm-output-row {
+    background: #fff;
+    border-color: #e6d4a3;
+}
+
+.wpm-output-row:hover {
+    background: #fffef9;
+}
+
+/* Nested Objectives Container */
+.wpm-objectives-container {
+    margin-top: 20px;
+    padding: 0;
+    background: rgba(255,255,255,0.5);
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* Visual Hierarchy Improvements */
+.wpm-goal-item {
+    margin-bottom: 24px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.wpm-objective-item {
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Collapsed State Indicators */
+.wpm-collapsed {
+    opacity: 0.95;
+}
+
+.wpm-collapsed .wpm-goal-header,
+.wpm-collapsed .wpm-objective-header {
+    border-bottom: none;
+    border-radius: 8px;
+}
+
+.wpm-goal-item.wpm-collapsed {
+    margin-bottom: 12px;
+}
+
+.wpm-objective-item.wpm-collapsed {
+    margin-bottom: 8px;
+}
+
+/* Responsive Collapse Buttons */
+@media (max-width: 768px) {
+    .wpm-header-subtitle {
+        display: none;
+    }
+    
+    .wpm-collapse-toggle {
+        padding: 2px 6px;
+        font-size: 10px;
+    }
 }
 
 /* Print Styles */

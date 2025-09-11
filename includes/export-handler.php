@@ -102,7 +102,7 @@ class WPM_Export_Handler {
         
         switch ($format) {
             case 'excel':
-                return $this->generate_excel_file($workplan_data, $export_dir, $filename);
+                return $this->generate_excel_xml_file($workplan_data, $export_dir, $filename);
             case 'csv':
                 return $this->generate_csv_file($workplan_data, $export_dir, $filename);
             default:
@@ -171,51 +171,100 @@ class WPM_Export_Handler {
                 $goal_data['objectives'][] = $objective_data;
             }
             
+            // Sort objectives by number
+            usort($goal_data['objectives'], function($a, $b) {
+                return intval($a['number']) - intval($b['number']);
+            });
+            
             $workplan_data['goals'][] = $goal_data;
         }
+        
+        // Sort goals by letter
+        usort($workplan_data['goals'], function($a, $b) {
+            return strcmp($a['letter'], $b['letter']);
+        });
         
         return $workplan_data;
     }
     
     /**
-     * Generate Excel file
+     * Generate Excel-compatible XML file (SpreadsheetML format)
      */
-    private function generate_excel_file($data, $export_dir, $filename) {
-        require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
-        
-        $filename .= '.xlsx';
+    private function generate_excel_xml_file($data, $export_dir, $filename) {
+        // Use .xml extension for SpreadsheetML format that Excel can open
+        $filename .= '.xml';
         $file_path = $export_dir . $filename;
         
-        // Create XML content for Excel file
-        $xml_content = $this->generate_excel_xml($data);
+        // Create XML content for Excel file (SpreadsheetML format)
+        $xml_content = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml_content .= '<?mso-application progid="Excel.Sheet"?>' . "\n";
+        $xml_content .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
+        $xml_content .= '    xmlns:o="urn:schemas-microsoft-com:office:office"' . "\n";
+        $xml_content .= '    xmlns:x="urn:schemas-microsoft-com:office:excel"' . "\n";
+        $xml_content .= '    xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
+        $xml_content .= '    xmlns:html="http://www.w3.org/TR/REC-html40">' . "\n";
         
-        // Create a simple XML-based Excel file (SpreadsheetML format)
-        $excel_content = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n";
-        $excel_content .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
-        $excel_content .= '    xmlns:o="urn:schemas-microsoft-com:office:office"' . "\n";
-        $excel_content .= '    xmlns:x="urn:schemas-microsoft-com:office:excel"' . "\n";
-        $excel_content .= '    xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
-        $excel_content .= '    xmlns:html="http://www.w3.org/TR/REC-html40">' . "\n";
+        // Add document properties
+        $xml_content .= '<DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">' . "\n";
+        $xml_content .= '<Title>' . htmlspecialchars($data['workplan']['title']) . '</Title>' . "\n";
+        $xml_content .= '<Author>' . htmlspecialchars($data['workplan']['author']) . '</Author>' . "\n";
+        $xml_content .= '<Created>' . date('Y-m-d\TH:i:s\Z') . '</Created>' . "\n";
+        $xml_content .= '</DocumentProperties>' . "\n";
         
         // Add styles
-        $excel_content .= '<Styles>' . "\n";
-        $excel_content .= '<Style ss:ID="Header">' . "\n";
-        $excel_content .= '<Font ss:Bold="1"/>' . "\n";
-        $excel_content .= '<Interior ss:Color="#E0E0E0" ss:Pattern="Solid"/>' . "\n";
-        $excel_content .= '</Style>' . "\n";
-        $excel_content .= '</Styles>' . "\n";
+        $xml_content .= '<Styles>' . "\n";
+        $xml_content .= '<Style ss:ID="Default" ss:Name="Normal">' . "\n";
+        $xml_content .= '<Alignment ss:Vertical="Top"/>' . "\n";
+        $xml_content .= '<Font ss:FontName="Calibri" ss:Size="11"/>' . "\n";
+        $xml_content .= '</Style>' . "\n";
+        $xml_content .= '<Style ss:ID="Header">' . "\n";
+        $xml_content .= '<Font ss:Bold="1" ss:Size="11"/>' . "\n";
+        $xml_content .= '<Interior ss:Color="#E0E0E0" ss:Pattern="Solid"/>' . "\n";
+        $xml_content .= '<Alignment ss:Vertical="Center" ss:WrapText="1"/>' . "\n";
+        $xml_content .= '</Style>' . "\n";
+        $xml_content .= '<Style ss:ID="WrapText">' . "\n";
+        $xml_content .= '<Alignment ss:Vertical="Top" ss:WrapText="1"/>' . "\n";
+        $xml_content .= '</Style>' . "\n";
+        $xml_content .= '</Styles>' . "\n";
         
         // Add worksheet
-        $excel_content .= '<Worksheet ss:Name="Work Plan">' . "\n";
-        $excel_content .= '<Table>' . "\n";
+        $xml_content .= '<Worksheet ss:Name="Work Plan">' . "\n";
+        $xml_content .= '<Table>' . "\n";
+        
+        // Add column widths
+        $xml_content .= '<Column ss:Width="80"/>' . "\n";  // Goal
+        $xml_content .= '<Column ss:Width="200"/>' . "\n"; // Goal Description
+        $xml_content .= '<Column ss:Width="80"/>' . "\n";  // Objective
+        $xml_content .= '<Column ss:Width="200"/>' . "\n"; // Objective Description
+        $xml_content .= '<Column ss:Width="150"/>' . "\n"; // Timeline
+        $xml_content .= '<Column ss:Width="150"/>' . "\n"; // Measurable Outcomes
+        $xml_content .= '<Column ss:Width="200"/>' . "\n"; // Outputs
+        
+        // Add metadata rows
+        $xml_content .= '<Row>' . "\n";
+        $xml_content .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Work Plan:</Data></Cell>' . "\n";
+        $xml_content .= '<Cell ss:MergeAcross="5"><Data ss:Type="String">' . htmlspecialchars($data['workplan']['title']) . '</Data></Cell>' . "\n";
+        $xml_content .= '</Row>' . "\n";
+        
+        $xml_content .= '<Row>' . "\n";
+        $xml_content .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Group:</Data></Cell>' . "\n";
+        $xml_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($data['workplan']['group']) . '</Data></Cell>' . "\n";
+        $xml_content .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Grant Year:</Data></Cell>' . "\n";
+        $xml_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($data['workplan']['grant_year']) . '</Data></Cell>' . "\n";
+        $xml_content .= '<Cell ss:StyleID="Header"><Data ss:Type="String">Status:</Data></Cell>' . "\n";
+        $xml_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($data['workplan']['internal_status']) . '</Data></Cell>' . "\n";
+        $xml_content .= '</Row>' . "\n";
+        
+        // Empty row
+        $xml_content .= '<Row></Row>' . "\n";
         
         // Add header row
-        $excel_content .= '<Row>' . "\n";
+        $xml_content .= '<Row>' . "\n";
         $headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Measurable Outcomes', 'Outputs');
         foreach ($headers as $header) {
-            $excel_content .= '<Cell ss:StyleID="Header"><Data ss:Type="String">' . htmlspecialchars($header) . '</Data></Cell>' . "\n";
+            $xml_content .= '<Cell ss:StyleID="Header"><Data ss:Type="String">' . htmlspecialchars($header) . '</Data></Cell>' . "\n";
         }
-        $excel_content .= '</Row>' . "\n";
+        $xml_content .= '</Row>' . "\n";
         
         // Add data rows
         foreach ($data['goals'] as $goal) {
@@ -225,40 +274,41 @@ class WPM_Export_Handler {
                     if (!empty($objective['outputs'])) {
                         $output_strings = array();
                         foreach ($objective['outputs'] as $output) {
-                            $output_strings[] = $output['output_letter'] . '. ' . $output['output_description'];
+                            $letter = strtoupper($output['output_letter']);
+                            $output_strings[] = $letter . '. ' . $output['output_description'];
                         }
-                        $outputs_text = implode('; ', $output_strings);
+                        $outputs_text = implode("\n", $output_strings);
                     }
                     
-                    $excel_content .= '<Row>' . "\n";
-                    $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($goal['letter'] . '. ' . $goal['title']) . '</Data></Cell>' . "\n";
-                    $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($goal['description']) . '</Data></Cell>' . "\n";
-                    $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($objective['number'] . '. ' . $objective['title']) . '</Data></Cell>' . "\n";
-                    $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($objective['description']) . '</Data></Cell>' . "\n";
-                    $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($objective['timeline_description']) . '</Data></Cell>' . "\n";
-                    $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($objective['measureable_outcomes']) . '</Data></Cell>' . "\n";
-                    $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($outputs_text) . '</Data></Cell>' . "\n";
-                    $excel_content .= '</Row>' . "\n";
+                    $xml_content .= '<Row>' . "\n";
+                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($goal['letter'] . '. ' . $goal['title']) . '</Data></Cell>' . "\n";
+                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($goal['description']) . '</Data></Cell>' . "\n";
+                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['number'] . '. ' . $objective['title']) . '</Data></Cell>' . "\n";
+                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['description']) . '</Data></Cell>' . "\n";
+                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['timeline_description']) . '</Data></Cell>' . "\n";
+                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($objective['measureable_outcomes']) . '</Data></Cell>' . "\n";
+                    $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($outputs_text) . '</Data></Cell>' . "\n";
+                    $xml_content .= '</Row>' . "\n";
                 }
             } else {
-                $excel_content .= '<Row>' . "\n";
-                $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($goal['letter'] . '. ' . $goal['title']) . '</Data></Cell>' . "\n";
-                $excel_content .= '<Cell><Data ss:Type="String">' . htmlspecialchars($goal['description']) . '</Data></Cell>' . "\n";
-                $excel_content .= '<Cell><Data ss:Type="String">No objectives defined</Data></Cell>' . "\n";
-                $excel_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
-                $excel_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
-                $excel_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
-                $excel_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
-                $excel_content .= '</Row>' . "\n";
+                $xml_content .= '<Row>' . "\n";
+                $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($goal['letter'] . '. ' . $goal['title']) . '</Data></Cell>' . "\n";
+                $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">' . htmlspecialchars($goal['description']) . '</Data></Cell>' . "\n";
+                $xml_content .= '<Cell ss:StyleID="WrapText"><Data ss:Type="String">No objectives defined</Data></Cell>' . "\n";
+                $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
+                $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
+                $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
+                $xml_content .= '<Cell><Data ss:Type="String"></Data></Cell>' . "\n";
+                $xml_content .= '</Row>' . "\n";
             }
         }
         
-        $excel_content .= '</Table>' . "\n";
-        $excel_content .= '</Worksheet>' . "\n";
-        $excel_content .= '</Workbook>';
+        $xml_content .= '</Table>' . "\n";
+        $xml_content .= '</Worksheet>' . "\n";
+        $xml_content .= '</Workbook>';
         
         // Write file
-        file_put_contents($file_path, $excel_content);
+        file_put_contents($file_path, $xml_content);
         
         return $this->create_download_link($file_path, $filename, 'application/vnd.ms-excel');
     }
@@ -279,6 +329,12 @@ class WPM_Export_Handler {
         // Add BOM for UTF-8
         fwrite($csv_handle, "\xEF\xBB\xBF");
         
+        // Add metadata rows
+        fputcsv($csv_handle, array('Work Plan:', $data['workplan']['title']));
+        fputcsv($csv_handle, array('Group:', $data['workplan']['group'], 'Grant Year:', $data['workplan']['grant_year']));
+        fputcsv($csv_handle, array('Status:', $data['workplan']['internal_status'], 'Author:', $data['workplan']['author']));
+        fputcsv($csv_handle, array()); // Empty row
+        
         // Add header row
         $headers = array('Goal', 'Goal Description', 'Objective', 'Objective Description', 'Timeline', 'Measurable Outcomes', 'Outputs');
         fputcsv($csv_handle, $headers);
@@ -291,7 +347,8 @@ class WPM_Export_Handler {
                     if (!empty($objective['outputs'])) {
                         $output_strings = array();
                         foreach ($objective['outputs'] as $output) {
-                            $output_strings[] = $output['output_letter'] . '. ' . $output['output_description'];
+                            $letter = strtoupper($output['output_letter']);
+                            $output_strings[] = $letter . '. ' . $output['output_description'];
                         }
                         $outputs_text = implode('; ', $output_strings);
                     }
@@ -361,15 +418,6 @@ class WPM_Export_Handler {
     private function get_taxonomy_names($post_id, $taxonomy) {
         $terms = wp_get_post_terms($post_id, $taxonomy, array('fields' => 'names'));
         return is_wp_error($terms) ? '' : implode(', ', $terms);
-    }
-    
-    /**
-     * Generate Excel XML content
-     */
-    private function generate_excel_xml($data) {
-        // This is a placeholder for more complex Excel XML generation
-        // For now, we'll use the simpler SpreadsheetML format in generate_excel_file
-        return '';
     }
 }
 

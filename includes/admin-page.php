@@ -68,7 +68,7 @@ $group_terms = get_terms(array(
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="wpm-form-group">
+                    <div class="wpm-form-group call-workplan">
                         <button type="button" id="load-workplan" class="button button-secondary">
                             <?php _e('Load Work Plan', 'work-plan-manager'); ?>
                         </button>
@@ -171,7 +171,7 @@ $group_terms = get_terms(array(
                 <h2><?php _e('Work Plan Preview', 'work-plan-manager'); ?></h2>
                 <div class="wpm-preview-actions">
                     <button type="button" id="export-excel" class="button button-secondary">
-                        <?php _e('Export to Excel', 'work-plan-manager'); ?>
+                        <?php _e('Export to XML', 'work-plan-manager'); ?>
                     </button>
                     <button type="button" id="export-csv" class="button button-secondary">
                         <?php _e('Export to CSV', 'work-plan-manager'); ?>
@@ -194,7 +194,14 @@ $group_terms = get_terms(array(
 <script type="text/template" id="goal-template">
     <div class="wpm-goal-item" data-goal-id="{{goal_id}}">
         <div class="wpm-goal-header">
-            <h3><?php _e('Goal', 'work-plan-manager'); ?> <span class="goal-letter">{{goal_letter}}</span></h3>
+            <div class="wpm-header-title">
+                <h3>
+                    <?php _e('Goal&nbsp;', 'work-plan-manager'); ?> 
+                    <span class="goal-letter">{{goal_letter}}</span>
+                    <span class="wpm-header-subtitle">{{title_suffix}}</span>
+                </h3>
+                <button type="button" class="wpm-collapse-toggle">Collapse</button>
+            </div>
             <div class="wpm-goal-actions">
                 <button type="button" class="button button-small duplicate-goal"><?php _e('Duplicate', 'work-plan-manager'); ?></button>
                 <button type="button" class="button button-small delete-goal"><?php _e('Delete', 'work-plan-manager'); ?></button>
@@ -247,7 +254,14 @@ $group_terms = get_terms(array(
 <script type="text/template" id="objective-template">
     <div class="wpm-objective-item" data-objective-id="{{objective_id}}">
         <div class="wpm-objective-header">
-            <h4><?php _e('Objective', 'work-plan-manager'); ?> <span class="objective-number">{{objective_number}}</span></h4>
+            <div class="wpm-header-title">
+                <h4>
+                    <?php _e('Objective&nbsp;', 'work-plan-manager'); ?> 
+                    <span class="objective-number">{{objective_number}}</span>
+                    <span class="wpm-header-subtitle">{{title_suffix}}</span>
+                </h4>
+                <button type="button" class="wpm-collapse-toggle">Collapse</button>
+            </div>
             <div class="wpm-objective-actions">
                 <button type="button" class="button button-small duplicate-objective"><?php _e('Duplicate', 'work-plan-manager'); ?></button>
                 <button type="button" class="button button-small delete-objective"><?php _e('Delete', 'work-plan-manager'); ?></button>
@@ -255,7 +269,8 @@ $group_terms = get_terms(array(
         </div>
         
         <div class="wpm-objective-form">
-            <input type="hidden" class="objective-id" value="{{objective_id}}">
+
+        <input type="hidden" class="objective-id" value="{{objective_id}}">
             
             <div class="wpm-form-row">
                 <div class="wpm-form-group">

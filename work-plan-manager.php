@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Work Plan Manager
  * Description: A plugin to manage Work Plans, Goals, and Objectives with a streamlined interface
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: KC Web Programmers
  * Text Domain: work-plan-manager
  */
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('WPM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WPM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('WPM_VERSION', '1.2.0');
+define('WPM_VERSION', '1.2.1');
 
 class WorkPlanManager {
     
@@ -186,12 +186,16 @@ class WorkPlanManager {
         
         if ($result && !is_wp_error($result)) {
             // Set taxonomies
-            if ($group) {
-                wp_set_post_terms($result, array($group), 'group');
+            if (!empty($group)) {
+                wp_set_object_terms($result, $group, 'group', false);
+            } else {
+                wp_set_object_terms($result, array(), 'group', false);
             }
-            
-            if ($grant_year) {
-                wp_set_post_terms($result, array($grant_year), 'grant-year');
+
+            if (!empty($grant_year)) {
+                wp_set_object_terms($result, $grant_year, 'grant-year', false);
+            } else {
+                wp_set_object_terms($result, array(), 'grant-year', false);
             }
             
             // Set ACF fields
