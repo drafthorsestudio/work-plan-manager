@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Work Plan Manager
  * Description: A plugin to manage Work Plans, Goals, and Objectives with a streamlined interface
- * Version: 1.3
+ * Version: 1.3.1
  * Author: KC Web Programmers
  * Text Domain: work-plan-manager
  */
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('WPM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('WPM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('WPM_VERSION', '1.2.1');
+define('WPM_VERSION', '1.3.1');
 
 class WorkPlanManager {
     
@@ -70,27 +70,114 @@ class WorkPlanManager {
     }
     
     public function setup_capabilities() {
-        // Add custom capability for the plugin
-        $role = get_role('administrator');
-        if ($role) {
-            $role->add_cap('manage_workplans');
-            $role->add_cap('edit_workplans');
-            $role->add_cap('edit_others_workplans');
-            $role->add_cap('publish_workplans');
-            $role->add_cap('read_private_workplans');
-            $role->add_cap('delete_workplans');
-            $role->add_cap('delete_private_workplans');
-            $role->add_cap('delete_published_workplans');
-            $role->add_cap('delete_others_workplans');
-            $role->add_cap('edit_private_workplans');
-            $role->add_cap('edit_published_workplans');
+        // Add all capabilities to administrator role (full access)
+        $admin_role = get_role('administrator');
+        if ($admin_role) {
+            $admin_capabilities = array(
+                'manage_workplans',
+                'edit_workplans',
+                'edit_others_workplans',  // This is the key capability that grants admin-level access
+                'publish_workplans',
+                'read_private_workplans',
+                'delete_workplans',
+                'delete_private_workplans',
+                'delete_published_workplans',
+                'delete_others_workplans',
+                'edit_private_workplans',
+                'edit_published_workplans'
+            );
+            
+            foreach ($admin_capabilities as $cap) {
+                $admin_role->add_cap($cap);
+            }
+        }
+        
+        // Handle ONLY the custom editor roles that are actually used
+        // These should have limited capabilities (group-restricted access)
+        $custom_editor_roles = array(
+            'central_east_editor',
+            'great_lakes_editor', 
+            'mid_america_editor',
+            'new_england_editor',
+            'northeast___caribbean_editor',
+            'southeast_editor',
+            'mountain_plains_editor',
+            'northwest_editor',
+            'pacific_southwest_editor',
+            'south_southwest_editor'
+        );
+        
+        foreach ($custom_editor_roles as $role_name) {
+            $custom_role = get_role($role_name);
+            if ($custom_role) {
+                // Add limited capabilities (NO edit_others_workplans)
+                $limited_caps = array(
+                    'manage_workplans',     // Can access the plugin interface
+                    'edit_workplans',       // Can create/edit workplans in their groups
+                    'publish_workplans',    // Can publish workplans
+                    'delete_workplans'      // Can delete goals/objectives in their workplans
+                );
+                
+                foreach ($limited_caps as $cap) {
+                    $custom_role->add_cap($cap);
+                }
+                
+                // Explicitly remove admin capability if it exists
+                $custom_role->remove_cap('edit_others_workplans');
+                
+                // Remove any other admin-level capabilities that shouldn't be there
+                $admin_only_caps = array(
+                    'read_private_workplans',
+                    'delete_private_workplans', 
+                    'delete_published_workplans',
+                    'delete_others_workplans',
+                    'edit_private_workplans',
+                    'edit_published_workplans'
+                );
+                
+                foreach ($admin_only_caps as $cap) {
+                    $custom_role->remove_cap($cap);
+                }
+                
+                // Debug logging
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[WPM Debug] Set up limited capabilities for role: ' . $role_name);
+                }
+            }
+        }
+        
+        // Also clean up the built-in 'editor' role in case it was modified
+        $editor_role = get_role('editor');
+        if ($editor_role) {
+            // Remove all workplan capabilities from the built-in editor role
+            $all_workplan_caps = array(
+                'manage_workplans',
+                'edit_workplans',
+                'edit_others_workplans',
+                'publish_workplans',
+                'read_private_workplans', 
+                'delete_workplans',
+                'delete_private_workplans',
+                'delete_published_workplans',
+                'delete_others_workplans',
+                'edit_private_workplans',
+                'edit_published_workplans'
+            );
+            
+            foreach ($all_workplan_caps as $cap) {
+                $editor_role->remove_cap($cap);
+            }
+            
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[WPM Debug] Cleaned up built-in editor role - removed all workplan capabilities');
+            }
         }
     }
     
     public function add_admin_menu() {
         add_menu_page(
             __('Work Plan Manager', 'work-plan-manager'),
-            __('Work Plans', 'work-plan-manager'),
+            __('Work Plan Manager', 'work-plan-manager'),
             'manage_workplans',
             'work-plan-manager',
             array($this, 'admin_page'),
@@ -538,6 +625,7 @@ class WorkPlanManager {
         
         try {
             $this->setup_capabilities();
+            $this->fix_existing_user_capabilities(); // Add this line
             flush_rewrite_rules();
             
             // Set activation flag
@@ -556,6 +644,131 @@ class WorkPlanManager {
                 __('Plugin Activation Error', 'work-plan-manager'),
                 array('back_link' => true)
             );
+        }
+    }
+    
+    /**
+     * Fix existing user capabilities that might be incorrectly assigned
+     */
+    public function fix_existing_user_capabilities() {
+        // Get all users with any workplan-related capabilities
+        $users = get_users(array(
+            'meta_query' => array(
+                'relation' => 'OR',
+                array(
+                    'key' => 'wp_capabilities',
+                    'value' => 'manage_workplans',
+                    'compare' => 'LIKE'
+                ),
+                array(
+                    'key' => 'wp_capabilities',
+                    'value' => 'edit_others_workplans', 
+                    'compare' => 'LIKE'
+                )
+            )
+        ));
+        
+        $custom_editor_roles = array(
+            'central_east_editor',
+            'great_lakes_editor', 
+            'mid_america_editor',
+            'new_england_editor',
+            'northeast___caribbean_editor',
+            'southeast_editor',
+            'mountain_plains_editor',
+            'northwest_editor',
+            'pacific_southwest_editor',
+            'south_southwest_editor'
+        );
+        
+        foreach ($users as $user) {
+            $user_roles = $user->roles;
+            $is_admin = in_array('administrator', $user_roles);
+            $is_custom_editor = !empty(array_intersect($user_roles, $custom_editor_roles));
+            
+            if ($is_admin) {
+                // Administrators should have all capabilities - ensure they do
+                $admin_caps = array(
+                    'manage_workplans',
+                    'edit_workplans', 
+                    'edit_others_workplans',
+                    'publish_workplans',
+                    'delete_workplans'
+                );
+                
+                foreach ($admin_caps as $cap) {
+                    if (!$user->has_cap($cap)) {
+                        $user->add_cap($cap);
+                    }
+                }
+                
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[WPM Debug] Ensured admin capabilities for user ' . $user->ID);
+                }
+                
+            } elseif ($is_custom_editor) {
+                // Custom editors should have limited capabilities only
+                $allowed_caps = array(
+                    'manage_workplans',
+                    'edit_workplans',
+                    'publish_workplans', 
+                    'delete_workplans'
+                );
+                
+                $prohibited_caps = array(
+                    'edit_others_workplans',
+                    'read_private_workplans',
+                    'delete_private_workplans',
+                    'delete_published_workplans',
+                    'delete_others_workplans',
+                    'edit_private_workplans',
+                    'edit_published_workplans'
+                );
+                
+                // Add allowed capabilities if missing
+                foreach ($allowed_caps as $cap) {
+                    if (!$user->has_cap($cap)) {
+                        $user->add_cap($cap);
+                    }
+                }
+                
+                // Remove prohibited capabilities if present
+                foreach ($prohibited_caps as $cap) {
+                    if ($user->has_cap($cap)) {
+                        $user->remove_cap($cap);
+                        
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            error_log('[WPM Debug] Removed ' . $cap . ' capability from user ' . $user->ID . ' (' . implode(', ', $user_roles) . ')');
+                        }
+                    }
+                }
+                
+            } else {
+                // Users with other roles shouldn't have any workplan capabilities
+                $all_workplan_caps = array(
+                    'manage_workplans',
+                    'edit_workplans',
+                    'edit_others_workplans',
+                    'publish_workplans',
+                    'read_private_workplans',
+                    'delete_workplans',
+                    'delete_private_workplans',
+                    'delete_published_workplans',
+                    'delete_others_workplans',
+                    'edit_private_workplans',
+                    'edit_published_workplans'
+                );
+                
+                foreach ($all_workplan_caps as $cap) {
+                    if ($user->has_cap($cap)) {
+                        $user->remove_cap($cap);
+                        
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            error_log('[WPM Debug] Removed ' . $cap . ' capability from non-workplan user ' . $user->ID . ' (' . implode(', ', $user_roles) . ')');
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -578,62 +791,78 @@ class WorkPlanManager {
     
     // Helper method to get accessible group terms
     public function get_accessible_groups($user_id = null) {
-    if (!$user_id) {
-        $user_id = get_current_user_id();
-    }
-    
-    // Administrators can access all groups
-    if (user_can($user_id, 'edit_others_workplans')) {
-        return array(); // Empty array means no filtering - show all
-    }
-    
-    $accessible_groups = array();
-    
-    // Get user roles
-    $user = get_userdata($user_id);
-    if ($user) {
-        $user_roles = $user->roles;
-        
-        // Map roles to group term SLUGS (not names)
-        $role_to_group_mapping = array(
-            'central_east' => 'central-east-pttc',
-            'central_east_editor' => 'central-east-pttc',
-            'great_lakes_editor' => 'great-lakes-pttc',
-            'mid_america_editor' => 'mid-america-pttc',
-            'new_england_editor' => 'new-england-pttc',
-            'northeast___caribbean_editor' => 'northeast-caribbean-pttc',
-            'southeast_editor' => 'southeast-pttc',
-            'mountain_plains_editor' => 'mountain-plains-pttc',
-            'northwest_editor' => 'northwest-pttc',
-            'pacific_southwest_editor' => 'pacific-southwest-pttc',
-            'south_southwest_editor' => 'south-southwest-pttc',
-        );
-        
-        foreach ($user_roles as $role) {
-            if (isset($role_to_group_mapping[$role])) {
-                $accessible_groups[] = $role_to_group_mapping[$role];
-            }
+        if (!$user_id) {
+            $user_id = get_current_user_id();
         }
-    }
-    
-    // If using PublishPress Permissions, also check those groups
-    if (function_exists('pp_get_groups_for_user') && empty($accessible_groups)) {
-        $user_groups = pp_get_groups_for_user($user_id);
         
-        if (!empty($user_groups)) {
-            foreach ($user_groups as $user_group) {
-                // Try to get the slug from the group
-                if (!empty($user_group->slug)) {
-                    $accessible_groups[] = $user_group->slug;
-                } elseif (!empty($user_group->metagroup_id) && isset($role_to_group_mapping[$user_group->metagroup_id])) {
-                    $accessible_groups[] = $role_to_group_mapping[$user_group->metagroup_id];
+        // Administrators can access all groups
+        if (user_can($user_id, 'edit_others_workplans')) {
+            return array(); // Empty array means no filtering - show all
+        }
+        
+        $accessible_groups = array();
+        
+        // Get user roles
+        $user = get_userdata($user_id);
+        if ($user) {
+            $user_roles = $user->roles;
+            
+            // Map roles to group term SLUGS (not names)
+            $role_to_group_mapping = array(
+                'central_east' => 'central-east-pttc',
+                'central_east_editor' => 'central-east-pttc',
+                'great_lakes_editor' => 'great-lakes-pttc',
+                'mid_america_editor' => 'mid-america-pttc',
+                'new_england_editor' => 'new-england-pttc',
+                'northeast___caribbean_editor' => 'northeast-caribbean-pttc',
+                'southeast_editor' => 'southeast-pttc',
+                'mountain_plains_editor' => 'mountain-plains-pttc',
+                'northwest_editor' => 'northwest-pttc',
+                'pacific_southwest_editor' => 'pacific-southwest-pttc',
+                'south_southwest_editor' => 'south-southwest-pttc',
+            );
+            
+            // Debug logging
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[WPM Debug] User roles: ' . print_r($user_roles, true));
+                error_log('[WPM Debug] Role mapping: ' . print_r($role_to_group_mapping, true));
+            }
+            
+            foreach ($user_roles as $role) {
+                if (isset($role_to_group_mapping[$role])) {
+                    $accessible_groups[] = $role_to_group_mapping[$role];
+                    
+                    // Debug logging
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('[WPM Debug] Mapped role "' . $role . '" to group "' . $role_to_group_mapping[$role] . '"');
+                    }
                 }
             }
         }
+        
+        // If using PublishPress Permissions, also check those groups
+        if (function_exists('pp_get_groups_for_user') && empty($accessible_groups)) {
+            $user_groups = pp_get_groups_for_user($user_id);
+            
+            if (!empty($user_groups)) {
+                foreach ($user_groups as $user_group) {
+                    // Try to get the slug from the group
+                    if (!empty($user_group->slug)) {
+                        $accessible_groups[] = $user_group->slug;
+                    } elseif (!empty($user_group->metagroup_id) && isset($role_to_group_mapping[$user_group->metagroup_id])) {
+                        $accessible_groups[] = $role_to_group_mapping[$user_group->metagroup_id];
+                    }
+                }
+            }
+        }
+        
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[WPM Debug] Final accessible groups for user ' . $user_id . ': ' . print_r($accessible_groups, true));
+        }
+        
+        return array_unique($accessible_groups);
     }
-    
-    return $accessible_groups;
-}
 }
 
 // Initialize the plugin

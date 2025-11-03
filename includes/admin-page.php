@@ -37,6 +37,15 @@ if (!current_user_can('edit_others_workplans')) {
 
 $existing_workplans = get_posts($workplans_query_args);
 
+// Debug logging to help troubleshoot
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    error_log('[WPM Debug] Current user ID: ' . $current_user_id);
+    error_log('[WPM Debug] Can edit others workplans: ' . (current_user_can('edit_others_workplans') ? 'Yes' : 'No'));
+    error_log('[WPM Debug] Accessible groups: ' . print_r($accessible_groups, true));
+    error_log('[WPM Debug] Query args: ' . print_r($workplans_query_args, true));
+    error_log('[WPM Debug] Found workplans: ' . count($existing_workplans));
+}
+
 // Get grant year terms (no quarters)
 $grant_years = get_terms(array(
     'taxonomy' => 'grant-year',
@@ -55,24 +64,28 @@ $group_terms = get_terms(array(
     
     <div class="wpm-main-content">
         <!-- Workplan Selection/Creation Section -->
-        <div class="wpm-section wpm-workplan-section">
+        <div class="wpm-section wmp-workplan-section">
             <h2><?php _e('Work Plan', 'work-plan-manager'); ?></h2>
             
             <div class="wpm-workplan-selector">
                 <div class="wpm-form-row">
                     <div class="wpm-form-group">
-                        <label for="existing-workplan"><?php _e('Select Existing Work Plan:', 'work-plan-manager'); ?></label>
+                        <!--<label for="existing-workplan"><?php _e('Select Existing Work Plan:', 'work-plan-manager'); ?></label>-->
                         <select id="existing-workplan" name="existing_workplan">
-                            <option value=""><?php _e('-- Select Work Plan --', 'work-plan-manager'); ?></option>
-                            <?php foreach ($existing_workplans as $workplan): ?>
-                                <option value="<?php echo $workplan->ID; ?>">
-                                    <?php echo esc_html($workplan->post_title); ?>
-                                </option>
-                            <?php endforeach; ?>
+                            <option value=""><?php _e('-- Select Existing Work Plan --', 'work-plan-manager'); ?></option>
+                            <?php if (!empty($existing_workplans)): ?>
+                                <?php foreach ($existing_workplans as $workplan): ?>
+                                    <option value="<?php echo $workplan->ID; ?>">
+                                        <?php echo esc_html($workplan->post_title); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <option disabled><?php _e('No work plans available', 'work-plan-manager'); ?></option>
+                            <?php endif; ?>
                         </select>
                     </div>
                     <div class="wpm-form-group call-workplan">
-                        <button type="button" id="load-workplan" class="button button-secondary">
+                        <button type="button" id="load-workplan" class="button button-secondary" <?php echo empty($existing_workplans) ? 'disabled' : ''; ?>>
                             <?php _e('Load Work Plan', 'work-plan-manager'); ?>
                         </button>
                         <button type="button" id="new-workplan" class="button button-primary">

@@ -60,6 +60,9 @@
 }
 
 /* Form Styling */
+.wpm-workplan-selector {
+    padding:24px;
+}
 .wpm-form-row {
     display: flex;
     gap: 16px;

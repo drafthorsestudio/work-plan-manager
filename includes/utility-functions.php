@@ -86,7 +86,7 @@ function wpm_get_workplan_goals($workplan_id) {
 /**
  * Get objectives for a goal
  */
-function wmp_get_goal_objectives($goal_id) {
+function wpm_get_goal_objectives($goal_id) {
     $objective_ids = get_field('work_plan_objectives', $goal_id) ?: array();
     
     if (empty($objective_ids)) {
@@ -131,7 +131,7 @@ function wpm_get_next_goal_letter($workplan_id) {
  * Get next available objective number for a goal
  */
 function wpm_get_next_objective_number($goal_id) {
-    $existing_objectives = wmp_get_goal_objectives($goal_id);
+    $existing_objectives = wpm_get_goal_objectives($goal_id);
     $used_numbers = array();
     
     foreach ($existing_objectives as $objective) {
@@ -181,20 +181,34 @@ function wpm_user_can_edit_workplan($workplan_id, $user_id = null) {
         return true;
     }
     
-    // Check group permissions if PublishPress is active
-    if (wpm_is_publishpress_active()) {
-        $wpm = new WorkPlanManager();
-        $accessible_groups = $wpm->get_accessible_groups($user_id);
+    // Check group permissions using the new method
+    $wpm = new WorkPlanManager();
+    $accessible_groups = $wpm->get_accessible_groups($user_id);
+    
+    if (!empty($accessible_groups)) {
+        $workplan_groups = wp_get_post_terms($workplan_id, 'group', array('fields' => 'slugs'));
         
-        if (!empty($accessible_groups)) {
-            $workplan_groups = wp_get_post_terms($workplan_id, 'group', array('fields' => 'slugs'));
-
-            foreach ($workplan_groups as $group_slug) {
-                if (in_array($group_slug, $accessible_groups)) {
-                    return true;
+        // Debug logging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[WPM Debug] Checking permissions for workplan ' . $workplan_id);
+            error_log('[WPM Debug] User accessible groups: ' . print_r($accessible_groups, true));
+            error_log('[WPM Debug] Workplan groups: ' . print_r($workplan_groups, true));
+        }
+        
+        foreach ($workplan_groups as $group_slug) {
+            if (in_array($group_slug, $accessible_groups)) {
+                // Debug logging
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[WPM Debug] Permission granted: user can access group "' . $group_slug . '"');
                 }
+                return true;
             }
         }
+    }
+    
+    // Debug logging
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('[WPM Debug] Permission denied for user ' . $user_id . ' on workplan ' . $workplan_id);
     }
     
     return false;
@@ -218,7 +232,7 @@ function wpm_get_workplan_completion_status($workplan_id) {
             $completed_goals++;
         }
         
-        $objectives = wmp_get_goal_objectives($goal->ID);
+        $objectives = wpm_get_goal_objectives($goal->ID);
         $total_objectives += count($objectives);
         
         foreach ($objectives as $objective) {
@@ -315,7 +329,7 @@ function wpm_format_workplan_for_display($workplan_id) {
             'objectives' => array()
         );
         
-        $objectives = wmp_get_goal_objectives($goal->ID);
+        $objectives = wpm_get_goal_objectives($goal->ID);
         
         foreach ($objectives as $objective) {
             $outputs = get_field('objective_outputs', $objective->ID) ?: array();
