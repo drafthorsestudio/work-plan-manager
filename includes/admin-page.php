@@ -21,7 +21,7 @@ if (!current_user_can('edit_others_workplans')) {
         $workplans_query_args['tax_query'] = array(
             array(
                 'taxonomy' => 'group',
-                'field' => 'name',
+                'field' => 'slug',
                 'terms' => $accessible_groups,
                 'operator' => 'IN'
             )
