@@ -13,16 +13,19 @@ $workplans_query_args = array(
     'post_type' => 'workplan',
     'posts_per_page' => -1,
     'post_status' => 'publish',
+    'orderby' => 'title',
+    'order' => 'ASC'
 );
 
 // Only add group filtering for non-administrators
 if (!current_user_can('edit_others_workplans')) {
     if (!empty($accessible_groups)) {
+        // accessible_groups now contains SLUGS, not names
         $workplans_query_args['tax_query'] = array(
             array(
                 'taxonomy' => 'group',
-                'field' => 'slug',
-                'terms' => $accessible_groups,
+                'field' => 'slug',  // Changed from 'name' to 'slug'
+                'terms' => $accessible_groups,  // Now these are slugs
                 'operator' => 'IN'
             )
         );
