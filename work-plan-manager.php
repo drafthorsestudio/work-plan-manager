@@ -244,9 +244,9 @@ class WorkPlanManager {
         
         if ($result && !is_wp_error($result)) {
             // Copy group taxonomy from parent workplan
-            $group_terms = wp_get_post_terms($workplan_id, 'group', array('fields' => 'slugs'));
+            $group_terms = wp_get_post_terms($workplan_id, 'group', array('fields' => 'ids'));
             if (!empty($group_terms)) {
-                wp_set_post_terms($result, $group_terms, 'group');
+                wp_set_object_terms($result, $group_terms, 'group', false);
             }
             
             // Set ACF fields
@@ -307,9 +307,9 @@ class WorkPlanManager {
         
         if ($result && !is_wp_error($result)) {
             // Copy group taxonomy from parent workplan
-            $group_terms = wp_get_post_terms($workplan_id, 'group', array('fields' => 'slugs'));
+            $group_terms = wp_get_post_terms($workplan_id, 'group', array('fields' => 'ids'));
             if (!empty($group_terms)) {
-                wp_set_post_terms($result, $group_terms, 'group');
+                wp_set_object_terms($result, $group_terms, 'group', false);
             }
             
             // Set ACF fields
@@ -578,35 +578,62 @@ class WorkPlanManager {
     
     // Helper method to get accessible group terms
     public function get_accessible_groups($user_id = null) {
-        if (!$user_id) {
-            $user_id = get_current_user_id();
-        }
+    if (!$user_id) {
+        $user_id = get_current_user_id();
+    }
+    
+    // Administrators can access all groups
+    if (user_can($user_id, 'edit_others_workplans')) {
+        return array(); // Empty array means no filtering - show all
+    }
+    
+    $accessible_groups = array();
+    
+    // Get user roles
+    $user = get_userdata($user_id);
+    if ($user) {
+        $user_roles = $user->roles;
         
-        // Administrators can access all groups
-        if (user_can($user_id, 'edit_others_workplans')) {
-            return array(); // Empty array means no filtering - show all
-        }
+        // Map roles to group term SLUGS (not names)
+        $role_to_group_mapping = array(
+            'central_east' => 'central-east-pttc',
+            'central_east_editor' => 'central-east-pttc',
+            'great_lakes_editor' => 'great-lakes-pttc',
+            'mid_america_editor' => 'mid-america-pttc',
+            'new_england_editor' => 'new-england-pttc',
+            'northeast___caribbean_editor' => 'northeast-caribbean-pttc',
+            'southeast_editor' => 'southeast-pttc',
+            'mountain_plains_editor' => 'mountain-plains-pttc',
+            'northwest_editor' => 'northwest-pttc',
+            'pacific_southwest_editor' => 'pacific-southwest-pttc',
+            'south_southwest_editor' => 'south-southwest-pttc',
+        );
         
-        $user_groups = $this->get_user_groups($user_id);
-        $accessible_groups = array();
+        foreach ($user_roles as $role) {
+            if (isset($role_to_group_mapping[$role])) {
+                $accessible_groups[] = $role_to_group_mapping[$role];
+            }
+        }
+    }
+    
+    // If using PublishPress Permissions, also check those groups
+    if (function_exists('pp_get_groups_for_user') && empty($accessible_groups)) {
+        $user_groups = pp_get_groups_for_user($user_id);
         
         if (!empty($user_groups)) {
             foreach ($user_groups as $user_group) {
-                // Map metagroup_id to actual group terms
-                $group_mappings = array(
-                    'great_lakes_editor' => 'Great Lakes ATTC',
-                    'mid_america_editor' => 'Mid-America ATTC',
-                    'central_east_editor' => 'Central East ATTC',
-                );
-                
-                if (isset($group_mappings[$user_group->metagroup_id])) {
-                    $accessible_groups[] = $group_mappings[$user_group->metagroup_id];
+                // Try to get the slug from the group
+                if (!empty($user_group->slug)) {
+                    $accessible_groups[] = $user_group->slug;
+                } elseif (!empty($user_group->metagroup_id) && isset($role_to_group_mapping[$user_group->metagroup_id])) {
+                    $accessible_groups[] = $role_to_group_mapping[$user_group->metagroup_id];
                 }
             }
         }
-        
-        return $accessible_groups;
     }
+    
+    return $accessible_groups;
+}
 }
 
 // Initialize the plugin
