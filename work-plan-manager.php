@@ -272,14 +272,22 @@ class WorkPlanManager {
         }
         
         if ($result && !is_wp_error($result)) {
-            // Set taxonomies
+            // Set taxonomies - FIXED: Use term ID properly
             if (!empty($group)) {
-                wp_set_object_terms($result, $group, 'group', false);
+                // Convert to integer to ensure we're using term ID, not name
+                $group_term_id = intval($group);
+                wp_set_object_terms($result, array($group_term_id), 'group', false);
+                
+                // Debug logging
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[WPM Debug] Set group taxonomy: term ID ' . $group_term_id . ' for workplan ' . $result);
+                }
             } else {
                 wp_set_object_terms($result, array(), 'group', false);
             }
 
             if (!empty($grant_year)) {
+                // Grant year is saved as slug, so this is correct
                 wp_set_object_terms($result, $grant_year, 'grant-year', false);
             } else {
                 wp_set_object_terms($result, array(), 'grant-year', false);
@@ -330,10 +338,15 @@ class WorkPlanManager {
         }
         
         if ($result && !is_wp_error($result)) {
-            // Copy group taxonomy from parent workplan
+            // Copy group taxonomy from parent workplan - FIXED: Use term IDs properly
             $group_terms = wp_get_post_terms($workplan_id, 'group', array('fields' => 'ids'));
             if (!empty($group_terms)) {
                 wp_set_object_terms($result, $group_terms, 'group', false);
+                
+                // Debug logging
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[WPM Debug] Copied group taxonomy IDs ' . implode(', ', $group_terms) . ' from workplan ' . $workplan_id . ' to goal ' . $result);
+                }
             }
             
             // Set ACF fields
@@ -393,10 +406,15 @@ class WorkPlanManager {
         }
         
         if ($result && !is_wp_error($result)) {
-            // Copy group taxonomy from parent workplan
+            // Copy group taxonomy from parent workplan - FIXED: Use term IDs properly
             $group_terms = wp_get_post_terms($workplan_id, 'group', array('fields' => 'ids'));
             if (!empty($group_terms)) {
                 wp_set_object_terms($result, $group_terms, 'group', false);
+                
+                // Debug logging
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('[WPM Debug] Copied group taxonomy IDs ' . implode(', ', $group_terms) . ' from workplan ' . $workplan_id . ' to objective ' . $result);
+                }
             }
             
             // Set ACF fields
