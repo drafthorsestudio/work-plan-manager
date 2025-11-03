@@ -187,10 +187,10 @@ function wpm_user_can_edit_workplan($workplan_id, $user_id = null) {
         $accessible_groups = $wpm->get_accessible_groups($user_id);
         
         if (!empty($accessible_groups)) {
-            $workplan_groups = wp_get_post_terms($workplan_id, 'group', array('fields' => 'names'));
-            
-            foreach ($workplan_groups as $group_name) {
-                if (in_array($group_name, $accessible_groups)) {
+            $workplan_groups = wp_get_post_terms($workplan_id, 'group', array('fields' => 'slugs'));
+
+            foreach ($workplan_groups as $group_slug) {
+                if (in_array($group_slug, $accessible_groups)) {
                     return true;
                 }
             }
@@ -228,8 +228,7 @@ function wpm_get_workplan_completion_status($workplan_id) {
             $measureable_outcomes = get_field('measureable_outcomes', $objective->ID);
             
             // Consider objective complete if it has number, description, and either timeline or measurable outcomes
-            if (!empty($obj_number) && !empty($obj_description) && 
-                (!empty($timeline_description) || !empty($measureable_outcomes))) {
+            if (!empty($obj_number) && !empty($obj_description) && !empty($timeline_description)) {
                 $completed_objectives++;
             }
         }
@@ -327,7 +326,6 @@ function wpm_format_workplan_for_display($workplan_id) {
                 'number' => get_field('objective_number', $objective->ID),
                 'description' => get_field('objective_description', $objective->ID),
                 'timeline_description' => get_field('timeline_description', $objective->ID),
-                'measureable_outcomes' => get_field('measureable_outcomes', $objective->ID),
                 'outputs' => $outputs
             );
         }
