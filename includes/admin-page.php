@@ -132,11 +132,11 @@ $group_terms = get_terms(array(
                                 <?php 
                                 // Show all groups to administrators, only accessible groups to others
                                 $can_access_group = current_user_can('edit_others_workplans') || 
-                                                   empty($accessible_groups) || 
-                                                   in_array($group->name, $accessible_groups);
+                                                empty($accessible_groups) || 
+                                                in_array($group->slug, $accessible_groups); // Changed to check slug
                                 ?>
                                 <?php if ($can_access_group): ?>
-                                    <option value="<?php echo $group->slug; ?>">
+                                    <option value="<?php echo $group->term_id; ?>">
                                         <?php echo esc_html($group->name); ?>
                                     </option>
                                 <?php endif; ?>

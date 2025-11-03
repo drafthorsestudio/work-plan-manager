@@ -51,7 +51,7 @@ function wpm_get_user_workplans($user_id = null) {
         $args['tax_query'] = array(
             array(
                 'taxonomy' => 'group',
-                'field' => 'name',
+                'field' => 'slug',  // Changed to slug
                 'terms' => $accessible_groups,
                 'operator' => 'IN'
             )
